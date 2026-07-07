@@ -47,8 +47,11 @@ async function getSmtpHostAddress(host: string): Promise<string> {
   return resolvedSmtpHost;
 }
 
-function createEmailSendError(): Error {
-  return new Error("Не вдалося надіслати лист. Спробуйте ще раз трохи пізніше.");
+function createEmailSendError(cause?: unknown): Error {
+  return new Error(
+    "Не вдалося надіслати лист. Спробуйте ще раз трохи пізніше.",
+    { cause },
+  );
 }
 
 async function getSmtpTransporter(): Promise<Transporter> {
@@ -95,9 +98,9 @@ async function sendEmail({ to, subject, html }: EmailMessage): Promise<void> {
           html,
         }),
       );
-    } catch {
+    } catch (err) {
       resetSmtpTransporter();
-      throw createEmailSendError();
+      throw createEmailSendError(err);
     }
     return;
   }
@@ -118,8 +121,8 @@ async function sendEmail({ to, subject, html }: EmailMessage): Promise<void> {
         html,
       }),
     );
-  } catch {
-    throw createEmailSendError();
+  } catch (err) {
+    throw createEmailSendError(err);
   }
 }
 

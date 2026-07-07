@@ -108,7 +108,7 @@ function normalizeErrorMessage(
     return SERVER_ERROR_MESSAGE;
   }
 
-  if (status && status >= 500) return SERVER_ERROR_MESSAGE;
+  if (status && status >= 500 && text === fallback) return SERVER_ERROR_MESSAGE;
 
   return text;
 }
