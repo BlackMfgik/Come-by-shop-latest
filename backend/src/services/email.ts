@@ -1,6 +1,8 @@
 // src/services/email.ts
 import { Resend } from "resend";
 import nodemailer, { type Transporter } from "nodemailer";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { env } from "../env.js";
 
 type EmailMessage = {
@@ -9,9 +11,47 @@ type EmailMessage = {
   html: string;
 };
 
+const EMAIL_SEND_TIMEOUT_MS = 12_000;
 let smtpTransporter: Transporter | null = null;
+let resolvedSmtpHost: string | null = null;
 
-function getSmtpTransporter(): Transporter {
+async function withEmailTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error("EMAIL_SEND_TIMEOUT"));
+        }, EMAIL_SEND_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function resetSmtpTransporter(): void {
+  if (smtpTransporter) {
+    smtpTransporter.close();
+    smtpTransporter = null;
+  }
+}
+
+async function getSmtpHostAddress(host: string): Promise<string> {
+  if (isIP(host)) return host;
+  if (resolvedSmtpHost) return resolvedSmtpHost;
+
+  const result = await withEmailTimeout(lookup(host, { family: 4 }));
+  resolvedSmtpHost = result.address;
+  return resolvedSmtpHost;
+}
+
+function createEmailSendError(): Error {
+  return new Error("Не вдалося надіслати лист. Спробуйте ще раз трохи пізніше.");
+}
+
+async function getSmtpTransporter(): Promise<Transporter> {
   if (smtpTransporter) return smtpTransporter;
 
   if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
@@ -20,13 +60,23 @@ function getSmtpTransporter(): Transporter {
     );
   }
 
+  const smtpHost = env.SMTP_HOST;
+  const smtpHostAddress = await getSmtpHostAddress(smtpHost);
+
   smtpTransporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
+    host: smtpHostAddress,
     port: env.SMTP_PORT,
     secure: env.SMTP_SECURE,
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
+    },
+    dnsTimeout: EMAIL_SEND_TIMEOUT_MS,
+    connectionTimeout: EMAIL_SEND_TIMEOUT_MS,
+    greetingTimeout: EMAIL_SEND_TIMEOUT_MS,
+    socketTimeout: EMAIL_SEND_TIMEOUT_MS,
+    tls: {
+      servername: smtpHost,
     },
   });
 
@@ -35,12 +85,20 @@ function getSmtpTransporter(): Transporter {
 
 async function sendEmail({ to, subject, html }: EmailMessage): Promise<void> {
   if (env.EMAIL_PROVIDER === "smtp") {
-    await getSmtpTransporter().sendMail({
-      from: env.EMAIL_FROM_ADDRESS,
-      to,
-      subject,
-      html,
-    });
+    try {
+      const transporter = await getSmtpTransporter();
+      await withEmailTimeout(
+        transporter.sendMail({
+          from: env.EMAIL_FROM_ADDRESS,
+          to,
+          subject,
+          html,
+        }),
+      );
+    } catch {
+      resetSmtpTransporter();
+      throw createEmailSendError();
+    }
     return;
   }
 
@@ -51,12 +109,18 @@ async function sendEmail({ to, subject, html }: EmailMessage): Promise<void> {
   }
 
   const resend = new Resend(env.EMAIL_PROVIDER_API_KEY);
-  await resend.emails.send({
-    from: env.EMAIL_FROM_ADDRESS,
-    to,
-    subject,
-    html,
-  });
+  try {
+    await withEmailTimeout(
+      resend.emails.send({
+        from: env.EMAIL_FROM_ADDRESS,
+        to,
+        subject,
+        html,
+      }),
+    );
+  } catch {
+    throw createEmailSendError();
+  }
 }
 
 export async function sendPasswordResetEmail(

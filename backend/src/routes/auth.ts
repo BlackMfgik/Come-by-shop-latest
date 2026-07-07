@@ -213,7 +213,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.code(500).send({ error: "Помилка створення заявки" });
       }
 
-      await sendEmailVerificationEmail(pending.email, code, pending.name);
+      try {
+        await sendEmailVerificationEmail(pending.email, code, pending.name);
+      } catch (err) {
+        request.log.error({ err }, "Failed to send registration email");
+        return reply.code(502).send({
+          error:
+            "Не вдалося надіслати код на пошту. Перевірте email або спробуйте ще раз трохи пізніше.",
+        });
+      }
 
       return reply
         .code(201)
@@ -360,7 +368,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         .set({ code, expiresAt, attempts: 0 })
         .where(eq(pendingRegistrations.id, pendingRegistrationId));
 
-      await sendEmailVerificationEmail(existing.email, code, existing.name);
+      try {
+        await sendEmailVerificationEmail(existing.email, code, existing.name);
+      } catch (err) {
+        request.log.error({ err }, "Failed to resend registration email");
+        return reply.code(502).send({
+          error:
+            "Не вдалося надіслати код на пошту. Спробуйте ще раз трохи пізніше.",
+        });
+      }
 
       return reply.code(200).send({ ok: true });
     },
@@ -422,7 +438,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
           });
 
         // Завжди надсилаємо код на email
-        await sendTwoFactorEmail(user.email, code);
+        try {
+          await sendTwoFactorEmail(user.email, code);
+        } catch (err) {
+          request.log.error({ err }, "Failed to send two-factor email");
+          return reply.code(502).send({
+            error:
+              "Не вдалося надіслати код на пошту. Спробуйте ще раз трохи пізніше.",
+          });
+        }
 
         // Додатково SMS якщо є верифікований телефон
         if (user.phone && user.phoneVerified) {
@@ -715,7 +739,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         expiresAt,
       });
 
-      await sendPasswordResetEmail(user.email, token, user.name);
+      try {
+        await sendPasswordResetEmail(user.email, token, user.name);
+      } catch (err) {
+        request.log.error({ err }, "Failed to send password reset email");
+        return reply.code(502).send({
+          error:
+            "Не вдалося надіслати лист для скидання пароля. Спробуйте ще раз трохи пізніше.",
+        });
+      }
 
       return reply.send({ ok: true });
     },
@@ -911,7 +943,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
           set: { newEmail: newEmail.toLowerCase(), code, expiresAt },
         });
 
-      await sendEmailChangeCode(newEmail, code, user.name);
+      try {
+        await sendEmailChangeCode(newEmail, code, user.name);
+      } catch (err) {
+        request.log.error({ err }, "Failed to send email change code");
+        return reply.code(502).send({
+          error:
+            "Не вдалося надіслати код на нову пошту. Спробуйте ще раз трохи пізніше.",
+        });
+      }
 
       return reply.send({ ok: true });
     },
