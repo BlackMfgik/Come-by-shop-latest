@@ -34,7 +34,7 @@ async function getProducts(): Promise<Product[]> {
       headers: { Accept: "application/json" },
       next: { revalidate: 60 },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) return [];
     return res.json();
   } catch {
     return [];

@@ -14,6 +14,7 @@ import {
   apiRegister,
   apiResendRegistrationCode,
   apiVerifyRegistration,
+  getFriendlyErrorMessage,
 } from "@/lib/api";
 
 // ── Індикатор сили пароля ───────────────────────────────────────────────────
@@ -152,7 +153,7 @@ function EmailVerifyModal({
       }
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Невірний код");
+      setError(getFriendlyErrorMessage(err, "Невірний код"));
       setDigits(Array(6).fill(""));
       inputsRef.current[0]?.focus();
     } finally {
@@ -169,11 +170,7 @@ function EmailVerifyModal({
       setDigits(Array(6).fill(""));
       inputsRef.current[0]?.focus();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Помилка надсилання. Спробуйте ще раз.",
-      );
+      setError(getFriendlyErrorMessage(err, "Помилка надсилання. Спробуйте ще раз."));
       return;
     } finally {
       setResendLoading(false);
@@ -347,7 +344,7 @@ export default function RegistrationPage() {
         password,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Помилка реєстрації");
+      setError(getFriendlyErrorMessage(err, "Помилка реєстрації. Спробуйте ще раз."));
     } finally {
       setLoading(false);
     }

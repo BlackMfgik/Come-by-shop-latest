@@ -6,7 +6,7 @@ import { z } from "zod";
 import { ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import BaseModal from "./BaseModal";
-import { apiVerifyPassword } from "@/lib/api";
+import { apiVerifyPassword, getFriendlyErrorMessage } from "@/lib/api";
 
 const schema = z.object({
   password: z.string().min(1, "Введіть пароль"),
@@ -46,9 +46,10 @@ export default function ConfirmPasswordModal({
       const msg =
         err instanceof Error && err.message.includes("400")
           ? "Невірний пароль"
-          : err instanceof Error
-            ? err.message
-            : "Помилка мережі. Спробуйте ще раз.";
+          : getFriendlyErrorMessage(
+              err,
+              "Помилка мережі. Спробуйте ще раз.",
+            );
       setError("password", { message: msg });
     }
   }

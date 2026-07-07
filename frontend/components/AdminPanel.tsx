@@ -10,6 +10,7 @@ import {
   apiUpdateProduct,
   apiDeleteProduct,
   apiToggleProductVisibility,
+  getFriendlyErrorMessage,
 } from "@/lib/api";
 import type { Product } from "@/types";
 import {
@@ -624,7 +625,7 @@ function OrdersTab({ token }: { token: string }) {
       const res = await fetch(`${BASE}/api/orders/admin`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("Не вдалося завантажити замовлення");
       setOrders(await res.json());
     } catch {
       toast.error("Не вдалося завантажити замовлення");
@@ -648,7 +649,7 @@ function OrdersTab({ token }: { token: string }) {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error("Не вдалося змінити статус замовлення");
       const updated: AdminOrder = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
       toast(`Замовлення #${orderId} → ${newStatus}`);
@@ -822,7 +823,7 @@ export default function AdminPanel() {
       await load();
     } catch (err: unknown) {
       toast.error(
-        err instanceof Error ? err.message : "Помилка при збереженні",
+        getFriendlyErrorMessage(err, "Помилка при збереженні"),
       );
     } finally {
       setSaving(false);
@@ -871,7 +872,7 @@ export default function AdminPanel() {
       setForm((prev) => ({ ...prev, imageUrl: data.url }));
       toast.success("Зображення завантажено ✓");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Помилка завантаження");
+      toast.error(getFriendlyErrorMessage(err, "Помилка завантаження"));
     } finally {
       setUploading(false);
     }

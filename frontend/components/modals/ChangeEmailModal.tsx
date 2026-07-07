@@ -10,7 +10,11 @@ import { RefreshCw } from "lucide-react";
 
 import BaseModal from "./BaseModal";
 import OtpInput from "@/components/ui/OtpInput";
-import { apiRequestEmailChange, apiConfirmEmailChange } from "@/lib/api";
+import {
+  apiRequestEmailChange,
+  apiConfirmEmailChange,
+  getFriendlyErrorMessage,
+} from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const emailSchema = z.object({
@@ -51,8 +55,10 @@ export default function ChangeEmailModal({ token, onClose }: Props) {
       await apiRequestEmailChange(data.email.trim(), token);
     } catch (err: unknown) {
       emailForm.setError("email", {
-        message:
-          err instanceof Error ? err.message : "Помилка при надсиланні коду",
+        message: getFriendlyErrorMessage(
+          err,
+          "Помилка при надсиланні коду",
+        ),
       });
       throw err; // prevent isSubmitSuccessful
     }
@@ -70,7 +76,7 @@ export default function ChangeEmailModal({ token, onClose }: Props) {
       onClose();
     } catch (err: unknown) {
       codeForm.setError("code", {
-        message: err instanceof Error ? err.message : "Невірний код",
+        message: getFriendlyErrorMessage(err, "Невірний код"),
       });
       codeForm.setValue("code", "");
     }

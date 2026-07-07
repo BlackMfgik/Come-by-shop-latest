@@ -32,7 +32,11 @@ import {
   type PhoneFormData,
   type OtpFormData,
 } from "@/lib/schemas";
-import { apiSendPhoneOtp, apiVerifyPhoneOtp } from "@/lib/api";
+import {
+  apiSendPhoneOtp,
+  apiVerifyPhoneOtp,
+  getFriendlyErrorMessage,
+} from "@/lib/api";
 import type { UserInfo } from "@/types";
 
 // ── Константи ─────────────────────────────────────────────────────────────────
@@ -204,7 +208,7 @@ export default function PhoneVerifyModal({
         phoneForm.reset(data);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Помилка надсилання SMS";
+      const msg = getFriendlyErrorMessage(err, "Помилка надсилання SMS");
       phoneForm.setError("phone", { message: msg });
     }
   }
@@ -227,7 +231,7 @@ export default function PhoneVerifyModal({
 
       onSuccess(update);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Невірний код";
+      const msg = getFriendlyErrorMessage(err, "Невірний код");
       otpForm.setError("code", { message: msg });
       otpSetValue("code", "");
     }

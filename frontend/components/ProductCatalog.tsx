@@ -13,6 +13,7 @@ import {
   apiUpdateProduct,
   apiDeleteProduct,
   apiToggleProductVisibility,
+  getFriendlyErrorMessage,
 } from "@/lib/api";
 import type { Product } from "@/types";
 import {
@@ -169,8 +170,8 @@ export default function ProductCatalog({
       setAdminOpen(false);
       invalidate();
     },
-    onError: (err: Error) =>
-      toast.error(err.message || "Помилка при збереженні"),
+    onError: (err) =>
+      toast.error(getFriendlyErrorMessage(err, "Помилка при збереженні")),
   });
 
   const updateMutation = useMutation({
@@ -183,8 +184,8 @@ export default function ProductCatalog({
       setAdminOpen(false);
       invalidate();
     },
-    onError: (err: Error) =>
-      toast.error(err.message || "Помилка при збереженні"),
+    onError: (err) =>
+      toast.error(getFriendlyErrorMessage(err, "Помилка при збереженні")),
   });
 
   const deleteMutation = useMutation({
@@ -274,7 +275,7 @@ export default function ProductCatalog({
       setForm((prev) => ({ ...prev, imageUrl: data.url }));
       toast.success("Зображення завантажено ✓");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Помилка завантаження");
+      toast.error(getFriendlyErrorMessage(err, "Помилка завантаження"));
     } finally {
       setUploading(false);
     }

@@ -21,6 +21,11 @@ import type {
 
 // 🔌 BACKEND URL — встановити NEXT_PUBLIC_API_URL в .env.local
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const DEFAULT_ERROR_MESSAGE = "Сталася помилка. Спробуйте ще раз.";
+const NETWORK_ERROR_MESSAGE =
+  "Не вдалося підключитися до сервера. Перевірте інтернет або спробуйте ще раз за кілька хвилин.";
+const SERVER_ERROR_MESSAGE =
+  "На сервері сталася помилка. Спробуйте ще раз трохи пізніше.";
 
 function authHeaders(token?: string | null): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
@@ -28,16 +33,143 @@ function authHeaders(token?: string | null): HeadersInit {
   return h;
 }
 
+function getStatusErrorMessage(status: number): string {
+  if (status === 400) return "Перевірте введені дані та спробуйте ще раз.";
+  if (status === 401) return "Будь ласка, увійдіть в акаунт і спробуйте ще раз.";
+  if (status === 403) return "У вас немає доступу до цієї дії.";
+  if (status === 404) return "Не вдалося знайти потрібні дані.";
+  if (status === 409) return "Такі дані вже використовуються.";
+  if (status === 410) return "Час дії коду або посилання минув. Спробуйте ще раз.";
+  if (status === 429) return "Забагато спроб. Спробуйте трохи пізніше.";
+  if (status >= 500) return SERVER_ERROR_MESSAGE;
+  return DEFAULT_ERROR_MESSAGE;
+}
+
+function normalizeErrorMessage(
+  message: string,
+  fallback = DEFAULT_ERROR_MESSAGE,
+  status?: number,
+): string {
+  const text = message.trim();
+  const lower = text.toLowerCase();
+
+  if (!text) return fallback;
+
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("fetch failed") ||
+    lower.includes("load failed") ||
+    lower.includes("econnrefused") ||
+    lower.includes("etimedout") ||
+    lower.includes("enotfound") ||
+    lower.includes("cors")
+  ) {
+    return NETWORK_ERROR_MESSAGE;
+  }
+
+  if (
+    lower === "bad request" ||
+    lower === "unauthorized" ||
+    lower === "forbidden" ||
+    lower === "not found" ||
+    lower === "too many requests" ||
+    lower.includes("unauthorized") ||
+    lower.includes("forbidden") ||
+    lower.includes("invalid token") ||
+    lower.includes("jwt") ||
+    lower.includes("request failed with status code")
+  ) {
+    return status ? getStatusErrorMessage(status) : fallback;
+  }
+
+  if (/^http\s+\d{3}$/i.test(text)) {
+    const parsedStatus = Number(text.replace(/\D/g, ""));
+    return getStatusErrorMessage(parsedStatus);
+  }
+
+  if (
+    lower.includes("smtp") ||
+    lower.includes("resend") ||
+    lower.includes("nodemailer") ||
+    lower.includes("email_provider") ||
+    lower.includes("email_from_address") ||
+    lower.includes("gmail")
+  ) {
+    return "Не вдалося надіслати лист. Спробуйте ще раз трохи пізніше.";
+  }
+
+  if (
+    lower.includes("internal server error") ||
+    lower.includes("unexpected token") ||
+    lower.includes("syntaxerror") ||
+    lower.includes("json")
+  ) {
+    return SERVER_ERROR_MESSAGE;
+  }
+
+  if (status && status >= 500) return SERVER_ERROR_MESSAGE;
+
+  return text;
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (error instanceof Error && "status" in error) {
+    const status = (error as Error & { status?: unknown }).status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
+export function getFriendlyErrorMessage(
+  error: unknown,
+  fallback = DEFAULT_ERROR_MESSAGE,
+): string {
+  const status = getErrorStatus(error);
+  if (error instanceof Error) {
+    return normalizeErrorMessage(error.message, fallback, status);
+  }
+  if (typeof error === "string") {
+    return normalizeErrorMessage(error, fallback, status);
+  }
+  return fallback;
+}
+
+async function apiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error, NETWORK_ERROR_MESSAGE));
+  }
+}
+
+async function getResponseErrorMessage(res: Response): Promise<string> {
+  let msg = getStatusErrorMessage(res.status);
+  try {
+    const data = await res.json();
+    if (data?.error) {
+      msg = normalizeErrorMessage(String(data.error), msg, res.status);
+    }
+  } catch {
+    /* ignore */
+  }
+  return msg;
+}
+
+async function throwResponseError(res: Response): Promise<never> {
+  const error = new Error(await getResponseErrorMessage(res)) as Error & {
+    status: number;
+  };
+  error.status = res.status;
+  throw error;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
+    await throwResponseError(res);
   }
   return res.json() as Promise<T>;
 }
@@ -54,7 +186,7 @@ export async function apiLogin(
   email: string,
   password: string,
 ): Promise<AuthPayload> {
-  const res = await fetch(`${BASE}/api/auth/login`, {
+  const res = await apiFetch(`${BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -74,7 +206,7 @@ export async function apiRegister(
   name: string,
   deviceId?: string,
 ): Promise<{ requires_verification: true; pendingRegistrationId: number }> {
-  const res = await fetch(`${BASE}/api/auth/register`, {
+  const res = await apiFetch(`${BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, name, deviceId }),
@@ -96,7 +228,7 @@ export async function apiVerifyRegistration(
   code: string,
   deviceId: string,
 ): Promise<AuthPayload> {
-  const res = await fetch(`${BASE}/api/auth/register/verify`, {
+  const res = await apiFetch(`${BASE}/api/auth/register/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pendingRegistrationId, code, deviceId }),
@@ -113,7 +245,7 @@ export async function apiVerifyRegistration(
 export async function apiResendRegistrationCode(
   pendingRegistrationId: number,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/register/resend`, {
+  const res = await apiFetch(`${BASE}/api/auth/register/resend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pendingRegistrationId }),
@@ -130,7 +262,7 @@ export async function apiResendRegistrationCode(
 export async function apiGoogleLogin(
   googleIdToken: string,
 ): Promise<AuthPayload> {
-  const res = await fetch(`${BASE}/api/auth/google`, {
+  const res = await apiFetch(`${BASE}/api/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken: googleIdToken }),
@@ -146,7 +278,7 @@ export async function apiGoogleLogin(
  * Де використовується: app/admin/page.tsx для перевірки прав адміна
  */
 export async function apiGetMe(token: string): Promise<UserInfo> {
-  const res = await fetch(`${BASE}/api/auth/me`, {
+  const res = await apiFetch(`${BASE}/api/auth/me`, {
     headers: authHeaders(token),
     cache: "no-store",
   });
@@ -163,7 +295,7 @@ export async function apiUpdateProfile(
   data: Partial<UserInfo>,
   token: string,
 ): Promise<UserInfo> {
-  const res = await fetch(`${BASE}/api/auth/profile`, {
+  const res = await apiFetch(`${BASE}/api/auth/profile`, {
     method: "PUT",
     headers: authHeaders(token),
     body: JSON.stringify(data),
@@ -182,21 +314,12 @@ export async function apiChangePassword(
   newPassword: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/password`, {
+  const res = await apiFetch(`${BASE}/api/auth/password`, {
     method: "PUT",
     headers: authHeaders(token),
     body: JSON.stringify({ oldPassword, newPassword }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -208,21 +331,12 @@ export async function apiChangePassword(
  * ENV:      EMAIL_PROVIDER_API_KEY (SendGrid / Resend / Mailgun)
  */
 export async function apiForgotPassword(email: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/reset-password`, {
+  const res = await apiFetch(`${BASE}/api/auth/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -235,7 +349,7 @@ export async function apiConfirmPasswordReset(
   token: string,
   newPassword: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/reset-password/confirm`, {
+  const res = await apiFetch(`${BASE}/api/auth/reset-password/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, newPassword }),
@@ -253,7 +367,7 @@ export async function apiUpdatePayment(
   payment: string,
   token: string,
 ): Promise<UserInfo> {
-  const res = await fetch(`${BASE}/api/auth/payment`, {
+  const res = await apiFetch(`${BASE}/api/auth/payment`, {
     method: "PUT",
     headers: authHeaders(token),
     body: JSON.stringify({ payment }),
@@ -283,21 +397,12 @@ export async function apiSendPhoneOtp(
   phone: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/phone/send-otp`, {
+  const res = await apiFetch(`${BASE}/api/auth/phone/send-otp`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ phone }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -318,7 +423,7 @@ export async function apiVerifyPhoneOtp(
   code: string,
   token: string,
 ): Promise<UserInfo> {
-  const res = await fetch(`${BASE}/api/auth/phone/verify-otp`, {
+  const res = await apiFetch(`${BASE}/api/auth/phone/verify-otp`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ phone, code }),
@@ -349,7 +454,7 @@ export async function apiVerifyPhoneOtp(
 export async function apiInitWayForPay(
   token: string,
 ): Promise<WayForPayInitResult> {
-  const res = await fetch(`${BASE}/api/payment/wayforpay/init`, {
+  const res = await apiFetch(`${BASE}/api/payment/wayforpay/init`, {
     method: "POST",
     // Fastify вимагає Content-Type щоб парсити body, навіть якщо воно пусте
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
@@ -374,21 +479,12 @@ export async function apiRequestEmailChange(
   newEmail: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/change-email/request`, {
+  const res = await apiFetch(`${BASE}/api/auth/change-email/request`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ newEmail }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -405,7 +501,7 @@ export async function apiConfirmEmailChange(
   code: string,
   token: string,
 ): Promise<UserInfo> {
-  const res = await fetch(`${BASE}/api/auth/change-email/confirm`, {
+  const res = await apiFetch(`${BASE}/api/auth/change-email/confirm`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ newEmail, code }),
@@ -426,7 +522,7 @@ export async function apiGetProducts(category?: string): Promise<Product[]> {
   const url = new URL(`${BASE}/api/products`);
   if (category) url.searchParams.set("category", category);
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     headers: { Accept: "application/json" },
   });
   return handleResponse<Product[]>(res);
@@ -438,7 +534,7 @@ export async function apiGetProducts(category?: string): Promise<Product[]> {
  * Errors:   404 → "Not found"
  */
 export async function apiGetProduct(id: number): Promise<Product> {
-  const res = await fetch(`${BASE}/api/products/${id}`);
+  const res = await apiFetch(`${BASE}/api/products/${id}`);
   return handleResponse<Product>(res);
 }
 
@@ -449,7 +545,7 @@ export async function apiGetProduct(id: number): Promise<Product> {
  * ⚙️ Бекенд: SELECT DISTINCT category FROM products WHERE hidden = false
  */
 export async function apiGetCategories(): Promise<string[]> {
-  const res = await fetch(`${BASE}/api/categories`, {
+  const res = await apiFetch(`${BASE}/api/categories`, {
     headers: { Accept: "application/json" },
     next: { revalidate: 300 },
   } as RequestInit);
@@ -467,7 +563,7 @@ export async function apiCreateProduct(
   data: Omit<Product, "id">,
   token: string,
 ): Promise<Product> {
-  const res = await fetch(`${BASE}/api/products`, {
+  const res = await apiFetch(`${BASE}/api/products`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(data),
@@ -485,7 +581,7 @@ export async function apiUpdateProduct(
   data: Partial<Product>,
   token: string,
 ): Promise<Product> {
-  const res = await fetch(`${BASE}/api/products/${id}`, {
+  const res = await apiFetch(`${BASE}/api/products/${id}`, {
     method: "PUT",
     headers: authHeaders(token),
     body: JSON.stringify(data),
@@ -503,11 +599,11 @@ export async function apiDeleteProduct(
   id: number,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/products/${id}`, {
+  const res = await apiFetch(`${BASE}/api/products/${id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -521,7 +617,7 @@ export async function apiToggleProductVisibility(
   hidden: boolean,
   token: string,
 ): Promise<Product> {
-  const res = await fetch(`${BASE}/api/products/${id}`, {
+  const res = await apiFetch(`${BASE}/api/products/${id}`, {
     method: "PATCH",
     headers: authHeaders(token),
     body: JSON.stringify({ hidden }),
@@ -549,21 +645,12 @@ export async function apiRequestPasswordChange(
   newPassword: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/password-change/request`, {
+  const res = await apiFetch(`${BASE}/api/auth/password-change/request`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ oldPassword, newPassword }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 /**
@@ -585,19 +672,13 @@ export async function apiConfirmPasswordChange(
   code: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/password-change/confirm`, {
+  const res = await apiFetch(`${BASE}/api/auth/password-change/confirm`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ code }),
   });
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
+    const msg = await getResponseErrorMessage(res);
     const err = Object.assign(new Error(msg), { status: res.status });
     throw err;
   }
@@ -615,21 +696,12 @@ export async function apiVerifyPassword(
   password: string,
   token: string,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/api/auth/verify-password`, {
+  const res = await apiFetch(`${BASE}/api/auth/verify-password`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ password }),
   });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const d = await res.json();
-      if (d?.error) msg = d.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+  if (!res.ok) await throwResponseError(res);
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -648,7 +720,7 @@ export async function apiCreateOrder(
   items: OrderItem[],
   token: string,
 ): Promise<unknown> {
-  const res = await fetch(`${BASE}/api/orders`, {
+  const res = await apiFetch(`${BASE}/api/orders`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify({ items }),
@@ -662,7 +734,7 @@ export async function apiCreateOrder(
  * Errors:   401 → "Unauthorized"
  */
 export async function apiGetMyOrders(token: string): Promise<Order[]> {
-  const res = await fetch(`${BASE}/api/orders`, {
+  const res = await apiFetch(`${BASE}/api/orders`, {
     headers: authHeaders(token),
   });
   return handleResponse<Order[]>(res);
@@ -676,7 +748,7 @@ export async function apiGetMyOrders(token: string): Promise<Order[]> {
  * Errors:   401 → "Unauthorized", 403 → "Forbidden"
  */
 export async function apiGetAdminOrders(token: string): Promise<unknown[]> {
-  const res = await fetch(`${BASE}/api/orders/admin`, {
+  const res = await apiFetch(`${BASE}/api/orders/admin`, {
     headers: authHeaders(token),
   });
   return handleResponse<unknown[]>(res);
@@ -693,7 +765,7 @@ export async function apiUpdateOrderStatus(
   status: string,
   token: string,
 ): Promise<unknown> {
-  const res = await fetch(`${BASE}/api/orders/${id}`, {
+  const res = await apiFetch(`${BASE}/api/orders/${id}`, {
     method: "PATCH",
     headers: authHeaders(token),
     body: JSON.stringify({ status }),

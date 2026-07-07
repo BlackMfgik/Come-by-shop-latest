@@ -17,6 +17,7 @@ import { ShieldCheck, RefreshCw, Smartphone } from "lucide-react";
 
 import BaseModal from "./BaseModal";
 import OtpInput from "@/components/ui/OtpInput";
+import { getFriendlyErrorMessage } from "@/lib/api";
 import {
   useVerificationStore,
   isOtpValid,
@@ -129,7 +130,10 @@ export default function TwoFactorModal({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setError("code", {
-          message: body?.error ?? "Помилка відправки коду. Спробуйте ще раз.",
+          message: getFriendlyErrorMessage(
+            body?.error,
+            "Помилка відправки коду. Спробуйте ще раз.",
+          ),
         });
         return;
       }
@@ -137,7 +141,7 @@ export default function TwoFactorModal({
       setValue("code", "");
     } catch {
       setError("code", {
-        message: "Помилка відправки коду. Спробуйте ще раз.",
+        message: "Не вдалося підключитися до сервера. Перевірте інтернет або спробуйте ще раз за кілька хвилин.",
       });
     }
   }
@@ -164,7 +168,12 @@ export default function TwoFactorModal({
           (res.status === 429
             ? "Занадто багато спроб"
             : "Невірний або прострочений код");
-        setError("code", { message: msg });
+        setError("code", {
+          message: getFriendlyErrorMessage(
+            msg,
+            "Невірний або прострочений код",
+          ),
+        });
         setValue("code", "");
         return;
       }
@@ -173,7 +182,7 @@ export default function TwoFactorModal({
       clearTwoFactor();
       onSuccess(result.token);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Невірний код";
+      const msg = getFriendlyErrorMessage(err, "Невірний код");
       setError("code", { message: msg });
       setValue("code", "");
     }

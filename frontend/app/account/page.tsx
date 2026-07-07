@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
-import { apiUpdateProfile, apiGetMyOrders } from "@/lib/api";
+import {
+  apiUpdateProfile,
+  apiGetMyOrders,
+  getFriendlyErrorMessage,
+} from "@/lib/api";
 import type { Order, UserInfo } from "@/types";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -358,8 +362,8 @@ function AccountPageContent() {
       toast.success("Профіль оновлено");
       setEditField(null);
     },
-    onError: (err: Error) =>
-      toast.error(err.message || "Помилка при збереженні"),
+    onError: (err) =>
+      toast.error(getFriendlyErrorMessage(err, "Помилка при збереженні")),
   });
 
   useEffect(() => {

@@ -9,7 +9,10 @@ import { Eye, EyeOff, Lock } from "lucide-react";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { apiConfirmPasswordReset } from "@/lib/api";
+import {
+  apiConfirmPasswordReset,
+  getFriendlyErrorMessage,
+} from "@/lib/api";
 import {
   resetPasswordSchema,
   type ResetPasswordFormData,
@@ -43,9 +46,10 @@ function ResetPasswordContent() {
       setSuccess(true);
     } catch (err) {
       setServerError(
-        err instanceof Error
-          ? err.message
-          : "Не вдалося змінити пароль. Спробуйте ще раз.",
+        getFriendlyErrorMessage(
+          err,
+          "Не вдалося змінити пароль. Спробуйте ще раз.",
+        ),
       );
     }
   }

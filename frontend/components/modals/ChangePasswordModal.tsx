@@ -30,6 +30,7 @@ import {
   apiChangePassword,
   apiRequestPasswordChange,
   apiConfirmPasswordChange,
+  getFriendlyErrorMessage,
 } from "@/lib/api";
 
 // ── Схеми ─────────────────────────────────────────────────────────────────────
@@ -172,9 +173,7 @@ export default function ChangePasswordModal({
           message:
             err instanceof Error && err.message.includes("400")
               ? "Невірний поточний пароль"
-              : err instanceof Error
-                ? err.message
-                : "Помилка мережі",
+              : getFriendlyErrorMessage(err, "Помилка мережі"),
         });
       }
       return;
@@ -190,9 +189,7 @@ export default function ChangePasswordModal({
         message:
           err instanceof Error && err.message.includes("400")
             ? "Невірний поточний пароль"
-            : err instanceof Error
-              ? err.message
-              : "Помилка мережі",
+            : getFriendlyErrorMessage(err, "Помилка мережі"),
       });
     }
   }
@@ -221,8 +218,7 @@ export default function ChangePasswordModal({
       onSuccess();
     } catch (err) {
       const status = (err as { status?: number })?.status;
-      const msg =
-        err instanceof Error ? err.message : "Невірний або застарілий код";
+      const msg = getFriendlyErrorMessage(err, "Невірний або застарілий код");
       otpForm.setError("code", { message: msg });
       otpForm.setValue("code", "");
       // 410 = сесія протермінувалась — повертаємо на крок 1

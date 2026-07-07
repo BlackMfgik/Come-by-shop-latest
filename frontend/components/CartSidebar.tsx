@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
-import { apiCreateOrder } from "@/lib/api";
+import { apiCreateOrder, getFriendlyErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { ShoppingCart } from "lucide-react";
 import OrderModal from "./OrderModal";
@@ -92,9 +92,10 @@ export default function CartSidebar({ isOpen, onClose }: Props) {
       setSuccessModal(true);
     } catch (err: unknown) {
       toast.error(
-        err instanceof Error
-          ? err.message
-          : "Помилка при оформленні замовлення",
+        getFriendlyErrorMessage(
+          err,
+          "Помилка при оформленні замовлення",
+        ),
       );
     }
   }
