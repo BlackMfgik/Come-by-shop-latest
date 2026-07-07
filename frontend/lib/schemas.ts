@@ -40,6 +40,21 @@ export const forgotPasswordSchema = z.object({
 
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(6, "Пароль має бути не менше 6 символів")
+      .max(100, "Пароль занадто довгий"),
+    confirm: z.string().min(1, "Підтвердіть пароль"),
+  })
+  .refine((data) => data.password === data.confirm, {
+    message: "Паролі не співпадають",
+    path: ["confirm"],
+  });
+
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
 // ── Phone (E.164 Ukraine) ─────────────────────────────────────────────────────
 
 /**

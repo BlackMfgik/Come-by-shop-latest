@@ -55,12 +55,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
           );
 
-          console.log("[authorize] status:", res.status, "deviceId:", deviceId);
-
           if (!res.ok) return null;
           const data = await res.json();
-
-          console.log("[authorize] data:", JSON.stringify(data));
 
           // requires_2fa обробляється preflight-запитом у login/page.tsx
           if (data.requires_2fa) return null;

@@ -48,6 +48,8 @@ vi.mock("../src/services/sms.js", () => ({
 vi.mock("../src/services/email.js", () => ({
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
   sendEmailChangeCode: vi.fn().mockResolvedValue(undefined),
+  sendTwoFactorEmail: vi.fn().mockResolvedValue(undefined),
+  sendEmailVerificationEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("google-auth-library", () => ({

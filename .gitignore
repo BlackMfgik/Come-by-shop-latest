@@ -1,9 +1,11 @@
 node_modules/
+.npm-cache/
 .next/
 dist/
-drizzle/
 .env
 .env.local
 *.js.map
 .DS_Store
 seed.ts
+*.zip
+Come-by-shope-latest-ssr.zip

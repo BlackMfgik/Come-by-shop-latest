@@ -37,6 +37,24 @@ export const users = pgTable("users", {
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
+// ─── pending_registrations ───────────────────────────────────────────────────
+
+export const pendingRegistrations = pgTable("pending_registrations", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  deviceId: text("device_id").notNull(),
+  code: varchar("code", { length: 6 }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type PendingRegistration = typeof pendingRegistrations.$inferSelect;
+
 // ─── user_devices ─────────────────────────────────────────────────────────────
 
 export const userDevices = pgTable(

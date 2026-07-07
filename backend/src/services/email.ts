@@ -1,8 +1,63 @@
 // src/services/email.ts
 import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../env.js";
 
-const resend = new Resend(env.EMAIL_PROVIDER_API_KEY);
+type EmailMessage = {
+  to: string;
+  subject: string;
+  html: string;
+};
+
+let smtpTransporter: Transporter | null = null;
+
+function getSmtpTransporter(): Transporter {
+  if (smtpTransporter) return smtpTransporter;
+
+  if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
+    throw new Error(
+      "SMTP не налаштовано. Заповніть SMTP_HOST, SMTP_PORT, SMTP_USER і SMTP_PASS у backend/.env",
+    );
+  }
+
+  smtpTransporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+
+  return smtpTransporter;
+}
+
+async function sendEmail({ to, subject, html }: EmailMessage): Promise<void> {
+  if (env.EMAIL_PROVIDER === "smtp") {
+    await getSmtpTransporter().sendMail({
+      from: env.EMAIL_FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    return;
+  }
+
+  if (!env.EMAIL_PROVIDER_API_KEY) {
+    throw new Error(
+      "Resend не налаштовано. Заповніть EMAIL_PROVIDER_API_KEY або використайте EMAIL_PROVIDER=smtp",
+    );
+  }
+
+  const resend = new Resend(env.EMAIL_PROVIDER_API_KEY);
+  await resend.emails.send({
+    from: env.EMAIL_FROM_ADDRESS,
+    to,
+    subject,
+    html,
+  });
+}
 
 export async function sendPasswordResetEmail(
   toEmail: string,
@@ -11,8 +66,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   const resetUrl = `${env.ALLOWED_ORIGIN}/reset-password?token=${resetToken}`;
 
-  await resend.emails.send({
-    from: env.EMAIL_FROM_ADDRESS,
+  await sendEmail({
     to: toEmail,
     subject: "Скидання пароля — Come by Shop",
     html: `
@@ -32,13 +86,7 @@ export async function sendTwoFactorEmail(
   toEmail: string,
   code: string,
 ): Promise<void> {
-  if (env.DEV_OTP) {
-    console.log(`[DEV EMAIL 2FA] → ${toEmail}: код ${code}`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: env.EMAIL_FROM_ADDRESS,
+  await sendEmail({
     to: toEmail,
     subject: "Підтвердження входу — Come by Shop",
     html: `
@@ -57,8 +105,7 @@ export async function sendEmailChangeCode(
   code: string,
   userName: string,
 ): Promise<void> {
-  await resend.emails.send({
-    from: env.EMAIL_FROM_ADDRESS,
+  await sendEmail({
     to: toEmail,
     subject: "Підтвердження зміни email — Come by Shop",
     html: `
@@ -76,13 +123,7 @@ export async function sendEmailVerificationEmail(
   code: string,
   name: string,
 ): Promise<void> {
-  if (env.DEV_OTP) {
-    console.log(`[DEV EMAIL VERIFY] → ${toEmail}: код ${code}`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: env.EMAIL_FROM_ADDRESS,
+  await sendEmail({
     to: toEmail,
     subject: "Підтвердження реєстрації — Come by Shop",
     html: `

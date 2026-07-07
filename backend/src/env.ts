@@ -15,8 +15,20 @@ export const env = createEnv({
     WAYFORPAY_SECRET_KEY: z.string().min(1),
     WAYFORPAY_DOMAIN: z.string().min(1),
 
-    EMAIL_PROVIDER_API_KEY: z.string().min(1),
+    EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("resend"),
+    EMAIL_PROVIDER_API_KEY: z.string().min(1).optional(),
     EMAIL_FROM_ADDRESS: z.string().email(),
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z
+      .string()
+      .optional()
+      .transform((v) => (v ? parseInt(v, 10) : undefined)),
+    SMTP_SECURE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((v) => v === "true"),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASS: z.string().min(1).optional(),
 
     GOOGLE_CLIENT_ID: z.string().min(1),
 

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778936293076,
+      "tag": "0000_icy_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783381200000,
+      "tag": "0001_pending_registrations",
+      "breakpoints": true
+    }
+  ]
+}

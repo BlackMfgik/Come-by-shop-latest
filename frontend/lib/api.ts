@@ -65,7 +65,7 @@ export async function apiLogin(
 /**
  * 🔌 ENDPOINT: POST /api/auth/register
  * Request:  { email, password, name, deviceId? }
- * Response: { requires_verification: true, userId: number }
+ * Response: { requires_verification: true, pendingRegistrationId: number }
  * Errors:   409 → "Email вже існує", 400 → "Невірні дані"
  */
 export async function apiRegister(
@@ -73,32 +73,52 @@ export async function apiRegister(
   password: string,
   name: string,
   deviceId?: string,
-): Promise<{ requires_verification: true; userId: number }> {
+): Promise<{ requires_verification: true; pendingRegistrationId: number }> {
   const res = await fetch(`${BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, name, deviceId }),
   });
-  return handleResponse<{ requires_verification: true; userId: number }>(res);
+  return handleResponse<{
+    requires_verification: true;
+    pendingRegistrationId: number;
+  }>(res);
 }
 
 /**
  * 🔌 ENDPOINT: POST /api/auth/register/verify
- * Request:  { userId: number, code: string, deviceId: string }
+ * Request:  { pendingRegistrationId: number, code: string, deviceId: string }
  * Response: { token: string, user: UserInfo }
  * Errors:   400 → "Невірний код", 410 → "Код прострочений", 429 → rate-limit
  */
 export async function apiVerifyRegistration(
-  userId: number,
+  pendingRegistrationId: number,
   code: string,
   deviceId: string,
 ): Promise<AuthPayload> {
   const res = await fetch(`${BASE}/api/auth/register/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, code, deviceId }),
+    body: JSON.stringify({ pendingRegistrationId, code, deviceId }),
   });
   return handleResponse<AuthPayload>(res);
+}
+
+/**
+ * 🔌 ENDPOINT: POST /api/auth/register/resend
+ * Request:  { pendingRegistrationId: number }
+ * Response: { ok: true }
+ * Errors:   410 → "Сесія реєстрації закінчилась"
+ */
+export async function apiResendRegistrationCode(
+  pendingRegistrationId: number,
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/auth/register/resend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pendingRegistrationId }),
+  });
+  await handleResponse<{ ok: true }>(res);
 }
 
 /**
@@ -203,6 +223,24 @@ export async function apiForgotPassword(email: string): Promise<void> {
     }
     throw new Error(msg);
   }
+}
+
+/**
+ * 🔌 ENDPOINT: POST /api/auth/reset-password/confirm
+ * Request:  { token: string, newPassword: string }
+ * Response: { ok: true }
+ * Errors:   400 → "Недійсний або прострочений токен"
+ */
+export async function apiConfirmPasswordReset(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/auth/reset-password/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  await handleResponse<{ ok: true }>(res);
 }
 
 /**

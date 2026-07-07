@@ -6,10 +6,15 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import BaseModal from "@/components/modals/BaseModal";
 import { User, Mail, Lock, Eye, EyeOff, MailCheck } from "lucide-react";
 import GoogleIcon from "@/components/GoogleIcon";
 import { useFingerprint } from "@/hooks/useFingerprint";
-import { apiRegister, apiVerifyRegistration } from "@/lib/api";
+import {
+  apiRegister,
+  apiResendRegistrationCode,
+  apiVerifyRegistration,
+} from "@/lib/api";
 
 // ── Індикатор сили пароля ───────────────────────────────────────────────────
 
@@ -52,7 +57,7 @@ function PasswordStrength({ password }: { password: string }) {
 
 interface VerifyModalProps {
   email: string;
-  userId: number;
+  pendingRegistrationId: number;
   deviceId: string;
   password: string;
   onClose: () => void;
@@ -61,7 +66,7 @@ interface VerifyModalProps {
 
 function EmailVerifyModal({
   email,
-  userId,
+  pendingRegistrationId,
   deviceId,
   password,
   onClose,
@@ -132,15 +137,17 @@ function EmailVerifyModal({
     setLoading(true);
     setError("");
     try {
-      await apiVerifyRegistration(userId, code, deviceId);
+      await apiVerifyRegistration(pendingRegistrationId, code, deviceId);
       const result = await signIn("credentials", {
         email,
         password,
+        deviceId,
         redirect: false,
       });
-      if (result?.error) {
-        // Верифікація пройшла, але signIn не вдався — відправляємо на логін
-        onSuccess();
+      if (!result || result.error) {
+        setError(
+          "Пошту підтверджено, але автоматичний вхід не вдався. Спробуйте увійти вручну.",
+        );
         return;
       }
       onSuccess();
@@ -157,36 +164,38 @@ function EmailVerifyModal({
     setResendLoading(true);
     setError("");
     try {
-      const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-      const res = await fetch(`${BASE}/api/auth/register/resend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setError(body?.error ?? "Помилка надсилання. Спробуйте ще раз.");
-        return;
-      }
+      await apiResendRegistrationCode(pendingRegistrationId);
       startCooldown();
       setDigits(Array(6).fill(""));
       inputsRef.current[0]?.focus();
-    } catch {
-      setError("Помилка мережі. Спробуйте ще раз.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Помилка надсилання. Спробуйте ще раз.",
+      );
+      return;
     } finally {
       setResendLoading(false);
     }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+    <BaseModal
+      onClose={onClose}
+      maxWidth={420}
+      aria-labelledby="registration-email-verify-title"
+    >
         <div style={{ textAlign: "center", marginBottom: "1rem" }}>
           <MailCheck size={44} color="var(--accent)" />
         </div>
 
-        <h2 className="modal-title" style={{ textAlign: "center" }}>
-          Підтвердіть email
+        <h2
+          id="registration-email-verify-title"
+          className="modal-title"
+          style={{ textAlign: "center" }}
+        >
+          Підтвердіть пошту
         </h2>
 
         <p
@@ -197,7 +206,7 @@ function EmailVerifyModal({
             marginBottom: "1.5rem",
           }}
         >
-          Ми надіслали код на{" "}
+          На вашу пошту було відправлено код. Введіть його тут:{" "}
           <strong style={{ color: "var(--text)" }}>{email}</strong>
         </p>
 
@@ -253,6 +262,7 @@ function EmailVerifyModal({
         )}
 
         <button
+          type="button"
           className="register-button"
           style={{ width: "100%", marginBottom: "0.75rem" }}
           onClick={handleVerify}
@@ -282,9 +292,8 @@ function EmailVerifyModal({
             : resendLoading
               ? "Надсилання..."
               : "Надіслати код знову"}
-        </button>
-      </div>
-    </div>
+          </button>
+    </BaseModal>
   );
 }
 
@@ -301,12 +310,13 @@ export default function RegistrationPage() {
   const [showPw, setShowPw] = useState(false);
   const [showCf, setShowCf] = useState(false);
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   // Стан після реєстрації — показуємо модалку
   const [verifyState, setVerifyState] = useState<{
-    userId: number;
+    pendingRegistrationId: number;
     email: string;
     password: string;
   } | null>(null);
@@ -314,11 +324,12 @@ export default function RegistrationPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setPasswordError("");
 
     if (!name.trim()) return setError("Введіть ваше ім'я");
     if (!email.trim()) return setError("Введіть email");
     if (password.length < 6)
-      return setError("Пароль має бути не менше 6 символів");
+      return setPasswordError("Пароль має бути не менше 6 символів");
     if (password !== confirm) return setError("Паролі не співпадають");
 
     setLoading(true);
@@ -330,7 +341,11 @@ export default function RegistrationPage() {
         deviceId ?? "unknown",
       );
       // Показуємо модалку підтвердження
-      setVerifyState({ userId: data.userId, email: email.trim(), password });
+      setVerifyState({
+        pendingRegistrationId: data.pendingRegistrationId,
+        email: email.trim(),
+        password,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Помилка реєстрації");
     } finally {
@@ -393,7 +408,10 @@ export default function RegistrationPage() {
                   type={showPw ? "text" : "password"}
                   placeholder="Мінімум 6 символів"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (e.target.value.length >= 6) setPasswordError("");
+                  }}
                   autoComplete="new-password"
                 />
                 <button
@@ -406,6 +424,9 @@ export default function RegistrationPage() {
                 </button>
               </div>
               {password && <PasswordStrength password={password} />}
+              {passwordError && (
+                <span className="register-hint error">{passwordError}</span>
+              )}
             </div>
 
             {/* Підтвердження */}
@@ -477,12 +498,12 @@ export default function RegistrationPage() {
       {verifyState && (
         <EmailVerifyModal
           email={verifyState.email}
-          userId={verifyState.userId}
+          pendingRegistrationId={verifyState.pendingRegistrationId}
           deviceId={deviceId ?? "unknown"}
           password={verifyState.password}
           onClose={() => setVerifyState(null)}
           onSuccess={() => {
-            router.push("/account");
+            router.push("/");
             router.refresh();
           }}
         />

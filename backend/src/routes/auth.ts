@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   users,
+  pendingRegistrations,
   userDevices,
   twoFactorCodes,
   phoneOtps,
@@ -35,13 +36,13 @@ const MAX_OTP_ATTEMPTS = 5;
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(6),
   name: z.string().min(1).max(255),
   deviceId: z.string().min(1).optional(),
 });
 
 const verifyEmailSchema = z.object({
-  userId: z.number().int().positive(),
+  pendingRegistrationId: z.number().int().positive(),
   code: z.string().length(6),
   deviceId: z.string().min(1),
 });
@@ -76,7 +77,7 @@ const updateProfileSchema = z.object({
 
 const changePasswordSchema = z.object({
   oldPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(6),
 });
 
 const resetPasswordSchema = z.object({
@@ -85,7 +86,7 @@ const resetPasswordSchema = z.object({
 
 const resetPasswordConfirmSchema = z.object({
   token: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(6),
 });
 
 const sendOtpSchema = z.object({
@@ -111,7 +112,7 @@ const passwordChangeRequestSchema = z.object({
 
 const passwordChangeConfirmSchema = z.object({
   code: z.string().length(6),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(6),
 });
 
 // ─── Helper types ─────────────────────────────────────────────────────────────
@@ -179,43 +180,47 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-      const [user] = await db
-        .insert(users)
+      const normalizedEmail = email.toLowerCase();
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + OTP_TTL_EMAIL_MS);
+      const pendingDeviceId = deviceId ?? "email-verify";
+
+      const [pending] = await db
+        .insert(pendingRegistrations)
         .values({
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           passwordHash,
           name,
+          deviceId: pendingDeviceId,
+          code,
+          expiresAt,
+        })
+        .onConflictDoUpdate({
+          target: pendingRegistrations.email,
+          set: {
+            passwordHash,
+            name,
+            deviceId: pendingDeviceId,
+            code,
+            expiresAt,
+            attempts: 0,
+            createdAt: new Date(),
+          },
         })
         .returning();
 
-      if (!user) {
-        return reply.code(500).send({ error: "Помилка створення користувача" });
+      if (!pending) {
+        return reply.code(500).send({ error: "Помилка створення заявки" });
       }
 
-      // Генеруємо OTP для підтвердження email
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 хвилин
-      const pendingDeviceId = deviceId ?? "email-verify";
-
-      await db
-        .insert(twoFactorCodes)
-        .values({ userId: user.id, deviceId: pendingDeviceId, code, expiresAt })
-        .onConflictDoUpdate({
-          target: twoFactorCodes.userId,
-          set: { deviceId: pendingDeviceId, code, expiresAt, attempts: 0 },
-        });
-
-      if (env.DEV_OTP) {
-        console.log(
-          `[DEV EMAIL VERIFY] → ${user.email}: код ${env.DEV_OTP ?? code}`,
-        );
-      } else {
-        await sendEmailVerificationEmail(user.email, code, user.name);
-      }
+      await sendEmailVerificationEmail(pending.email, code, pending.name);
 
       return reply
         .code(201)
-        .send({ requires_verification: true, userId: user.id });
+        .send({
+          requires_verification: true,
+          pendingRegistrationId: pending.id,
+        });
     },
   );
 
@@ -232,12 +237,12 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       if (!result.success) {
         return reply.code(400).send({ error: "Невірні дані" });
       }
-      const { userId, code, deviceId } = result.data;
+      const { pendingRegistrationId, code, deviceId } = result.data;
 
       const [row] = await db
         .select()
-        .from(twoFactorCodes)
-        .where(eq(twoFactorCodes.userId, userId))
+        .from(pendingRegistrations)
+        .where(eq(pendingRegistrations.id, pendingRegistrationId))
         .limit(1);
 
       if (!row) {
@@ -246,7 +251,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
           .send({ error: "Код не знайдено або вже використано" });
       }
 
-      if (row.attempts >= 5) {
+      if (row.attempts >= MAX_OTP_ATTEMPTS) {
         return reply
           .code(429)
           .send({ error: "Занадто багато спроб. Зареєструйтесь знову." });
@@ -254,39 +259,57 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
       if (new Date() > row.expiresAt) {
         await db
-          .delete(twoFactorCodes)
-          .where(eq(twoFactorCodes.userId, userId));
+          .delete(pendingRegistrations)
+          .where(eq(pendingRegistrations.id, pendingRegistrationId));
         return reply
           .code(410)
           .send({ error: "Код прострочений. Зареєструйтесь знову." });
       }
 
-      const validCode = env.DEV_OTP ?? row.code;
-      if (code !== validCode) {
+      if (!timingSafeCompare(row.code, code)) {
         await db
-          .update(twoFactorCodes)
+          .update(pendingRegistrations)
           .set({ attempts: row.attempts + 1 })
-          .where(eq(twoFactorCodes.userId, userId));
+          .where(eq(pendingRegistrations.id, pendingRegistrationId));
         return reply.code(400).send({ error: "Невірний код" });
       }
 
-      // Видаляємо OTP і реєструємо пристрій
-      await db.delete(twoFactorCodes).where(eq(twoFactorCodes.userId, userId));
+      const existing = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, row.email))
+        .limit(1);
+
+      if (existing.length > 0) {
+        await db
+          .delete(pendingRegistrations)
+          .where(eq(pendingRegistrations.id, pendingRegistrationId));
+        return reply
+          .code(409)
+          .send({ error: "Email вже використовується" });
+      }
+
+      const [user] = await db
+        .insert(users)
+        .values({
+          email: row.email,
+          passwordHash: row.passwordHash,
+          name: row.name,
+        })
+        .returning();
+
+      if (!user) {
+        return reply.code(500).send({ error: "Помилка створення користувача" });
+      }
+
+      await db
+        .delete(pendingRegistrations)
+        .where(eq(pendingRegistrations.id, pendingRegistrationId));
 
       await db
         .insert(userDevices)
-        .values({ userId, deviceId })
+        .values({ userId: user.id, deviceId })
         .onConflictDoNothing();
-
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!user) {
-        return reply.code(500).send({ error: "Користувача не знайдено" });
-      }
 
       const token = signToken(fastify, {
         id: user.id,
@@ -307,25 +330,20 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const { userId } = request.body as { userId?: number };
-      if (!userId || typeof userId !== "number") {
+      const { pendingRegistrationId } = request.body as {
+        pendingRegistrationId?: number;
+      };
+      if (
+        !pendingRegistrationId ||
+        typeof pendingRegistrationId !== "number"
+      ) {
         return reply.code(400).send({ error: "Невірні дані" });
-      }
-
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!user) {
-        return reply.code(404).send({ error: "Користувача не знайдено" });
       }
 
       const [existing] = await db
         .select()
-        .from(twoFactorCodes)
-        .where(eq(twoFactorCodes.userId, userId))
+        .from(pendingRegistrations)
+        .where(eq(pendingRegistrations.id, pendingRegistrationId))
         .limit(1);
 
       if (!existing) {
@@ -338,17 +356,11 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       await db
-        .update(twoFactorCodes)
+        .update(pendingRegistrations)
         .set({ code, expiresAt, attempts: 0 })
-        .where(eq(twoFactorCodes.userId, userId));
+        .where(eq(pendingRegistrations.id, pendingRegistrationId));
 
-      if (env.DEV_OTP) {
-        console.log(
-          `[DEV EMAIL VERIFY RESEND] → ${user.email}: код ${env.DEV_OTP ?? code}`,
-        );
-      } else {
-        await sendEmailVerificationEmail(user.email, code, user.name);
-      }
+      await sendEmailVerificationEmail(existing.email, code, existing.name);
 
       return reply.code(200).send({ ok: true });
     },
@@ -398,7 +410,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
       if (knownDevice.length === 0) {
         // Unknown device → require 2FA
-        const code = generateOtp();
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + OTP_TTL_2FA_MS);
 
         await db
