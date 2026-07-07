@@ -12,16 +12,20 @@ import { productsRoutes } from "./routes/products.js";
 import { ordersRoutes } from "./routes/orders.js";
 import { paymentRoutes } from "./routes/payment.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const app = Fastify({
-  logger: {
-    transport: {
-      target: "pino-pretty",
-      options: {
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
+  logger: isProduction
+    ? true
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
+          },
+        } as any,
       },
-    } as any,
-  },
 });
 
 // ─── Plugins ─────────────────────────────────────────────────────────────────
