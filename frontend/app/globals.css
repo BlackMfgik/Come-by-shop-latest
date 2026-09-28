@@ -1177,6 +1177,13 @@ footer {
   padding: calc(16px * var(--scale)) calc(24px * var(--scale));
   border-top: 1px solid var(--border);
 }
+.footer-bottom a {
+  color: inherit;
+  text-decoration: underline;
+}
+.footer-bottom a:hover {
+  color: var(--accent);
+}
 
 /* ── Footer logo row (icon + brand side by side) ────────────────────────── */
 .footer-logo-row {

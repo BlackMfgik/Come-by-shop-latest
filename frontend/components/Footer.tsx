@@ -41,7 +41,10 @@ export default function Footer() {
           </ul>
         </details>
       </div>
-      <div className="footer-bottom">© 2025 Come by. Всі права захищено.</div>
+      <div className="footer-bottom">
+        © 2025 Come by. Всі права захищено. · made by{" "}
+        <a href="https://aokigahara.dev">Aokigahara</a>
+      </div>
     </footer>
   );
 }
