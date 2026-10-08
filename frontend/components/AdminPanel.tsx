@@ -10,7 +10,9 @@ import {
   apiUpdateProduct,
   apiDeleteProduct,
   apiToggleProductVisibility,
+  apiUploadImage,
   getFriendlyErrorMessage,
+  type ProductInput,
 } from "@/lib/api";
 import type { Product } from "@/types";
 import {
@@ -790,7 +792,7 @@ export default function AdminPanel() {
   async function load() {
     setLoading(true);
     try {
-      setProducts(await apiGetProducts());
+      setProducts(await apiGetProducts(undefined, token));
     } catch {
       toast.error("Не вдалося завантажити товари");
     } finally {
@@ -801,14 +803,23 @@ export default function AdminPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+    const price = parseFloat(form.price);
+    if (!Number.isFinite(price) || price < 0) {
+      toast.error("Вкажіть коректну ціну");
+      return;
+    }
+    if (!effectiveCategory.trim()) {
+      toast.error("Оберіть або введіть категорію");
+      return;
+    }
     setSaving(true);
-    const payload = {
-      name: form.name,
+    const payload: ProductInput = {
+      name: form.name.trim(),
       description: form.description,
       weight: form.weight,
-      price: parseFloat(form.price),
-      imageUrl: form.imageUrl,
-      category: effectiveCategory,
+      price,
+      image: form.imageUrl,
+      category: effectiveCategory.trim(),
     };
     try {
       if (editingId != null) {
@@ -862,14 +873,11 @@ export default function AdminPanel() {
   }
 
   async function handleFileUpload(file: File) {
+    if (!token) return;
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Помилка завантаження");
-      setForm((prev) => ({ ...prev, imageUrl: data.url }));
+      const url = await apiUploadImage(file, token);
+      setForm((prev) => ({ ...prev, imageUrl: url }));
       toast.success("Зображення завантажено ✓");
     } catch (err: unknown) {
       toast.error(getFriendlyErrorMessage(err, "Помилка завантаження"));

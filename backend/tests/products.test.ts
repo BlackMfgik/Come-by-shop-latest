@@ -191,6 +191,69 @@ describe("Products routes", () => {
       });
       expect(response.statusCode).toBe(400);
     });
+
+    it("accepts numeric price and empty optional fields from the admin form", async () => {
+      const { db } = await import("../src/db/index.js");
+      const values = (db as unknown as { values: ReturnType<typeof vi.fn> })
+        .values;
+      values.mockClear();
+
+      const token = app.jwt.sign({
+        id: 1,
+        email: "admin@test.com",
+        admin: true,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/products",
+        headers: { Authorization: `Bearer ${token}` },
+        payload: {
+          name: "Новий товар",
+          price: 99.5,
+          category: "Кава",
+          image: "",
+          description: "",
+          weight: "",
+        },
+      });
+      expect(response.statusCode).toBe(201);
+      expect(values).toHaveBeenCalledWith(
+        expect.objectContaining({ price: "99.50", image: null }),
+      );
+    });
+  });
+
+  describe("GET /api/products visibility", () => {
+    it("filters hidden products for anonymous users", async () => {
+      const { db } = await import("../src/db/index.js");
+      const where = (db as unknown as { where: ReturnType<typeof vi.fn> })
+        .where;
+      where.mockClear();
+
+      await app.inject({ method: "GET", url: "/api/products" });
+      expect(where.mock.calls[0]?.[0]).toBeDefined();
+    });
+
+    it("returns hidden products to admins", async () => {
+      const { db } = await import("../src/db/index.js");
+      const where = (db as unknown as { where: ReturnType<typeof vi.fn> })
+        .where;
+      where.mockClear();
+
+      const token = app.jwt.sign({
+        id: 1,
+        email: "admin@test.com",
+        admin: true,
+      });
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/products",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(where.mock.calls[0]?.[0]).toBeUndefined();
+    });
   });
 
   describe("DELETE /api/products/:id (admin required)", () => {

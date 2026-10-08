@@ -29,15 +29,16 @@ export const useCartStore = create<CartState>()(
 
       addItem: (name, price, image, description, id) =>
         set((state) => {
-          const copy = [...state.items];
-          const existing = copy.find((i) =>
-            id != null ? i.id === id : i.name === name,
-          );
-          if (existing) {
-            existing.quantity++;
-          } else {
-            copy.push({ id, name, price, image, description, quantity: 1 });
-          }
+          const matches = (i: CartItem) =>
+            id != null ? i.id === id : i.name === name;
+          const copy = state.items.some(matches)
+            ? state.items.map((i) =>
+                matches(i) ? { ...i, quantity: i.quantity + 1 } : i,
+              )
+            : [
+                ...state.items,
+                { id, name, price, image, description, quantity: 1 },
+              ];
           return { items: copy, total: calcTotal(copy) };
         }),
 

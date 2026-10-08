@@ -12,6 +12,7 @@ import OrderSuccessModal from "./modals/OrderSuccessModal";
 import IncompleteProfileModal from "./modals/IncompleteProfileModal";
 import EmptyState from "./ui/EmptyState";
 import { getProfileGaps, type ProfileGap } from "@/lib/profileCheck";
+import { useHydrated } from "@/hooks/useHydrated";
 
 interface Props {
   isOpen: boolean;
@@ -19,7 +20,11 @@ interface Props {
 }
 
 export default function CartSidebar({ isOpen, onClose }: Props) {
-  const { items, updateQty, removeItem, total, clearCart } = useCartStore();
+  const hydrated = useHydrated();
+  const cart = useCartStore();
+  const { updateQty, removeItem, clearCart } = cart;
+  const items = hydrated ? cart.items : [];
+  const total = hydrated ? cart.total : 0;
   const { token, user } = useAuthStore();
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -106,10 +111,19 @@ export default function CartSidebar({ isOpen, onClose }: Props) {
         ref={sidebarRef}
         className={`cart-sidebar${isOpen ? " active" : ""}`}
         id="cart-sidebar"
+        role="dialog"
+        aria-label="Кошик"
+        aria-hidden={!isOpen}
+        inert={!isOpen}
       >
         <div className="cart-header">
           <h2>Моя корзина</h2>
-          <button id="close-cart" onClick={onClose}>
+          <button
+            id="close-cart"
+            type="button"
+            onClick={onClose}
+            aria-label="Закрити кошик"
+          >
             &times;
           </button>
         </div>
@@ -123,7 +137,7 @@ export default function CartSidebar({ isOpen, onClose }: Props) {
             />
           ) : (
             items.map((item) => (
-              <div className="cart-item" key={item.name}>
+              <div className="cart-item" key={item.id ?? item.name}>
                 <button
                   className="remove-item"
                   onClick={() => removeItem(item.name)}
@@ -132,7 +146,14 @@ export default function CartSidebar({ isOpen, onClose }: Props) {
                   ✕
                 </button>
 
-                <img src={item.image} alt={item.name} width={48} height={48} />
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  width={48}
+                  height={48}
+                  loading="lazy"
+                  decoding="async"
+                />
 
                 <div className="cart-item-info">
                   <strong>{item.name}</strong>

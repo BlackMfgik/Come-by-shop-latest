@@ -1,9 +1,9 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AdminPanel from "@/components/AdminPanel";
+import { auth } from "@/auth";
 import { apiGetMe } from "@/lib/api";
 
 export const metadata: Metadata = {
@@ -14,14 +14,13 @@ export const metadata: Metadata = {
  * 🔌 BACKEND: GET /api/auth/me  [AUTH REQUIRED]
  * Headers:  Authorization: Bearer <token>
  * Response: UserInfo { id, email, name, admin: true, ... }
- * Errors:   401 → null (редирект на головну)
  *
- * Примітка: токен береться з httpOnly cookie "token"
- * Встановлюється бекендом після /api/auth/login
+ * Токен бекенду береться з сесії NextAuth (session.accessToken),
+ * права адміна перевіряються бекендом, а не з даних сесії.
  */
 async function getAdminUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const session = await auth();
+  const token = session?.accessToken;
   if (!token) return null;
 
   try {

@@ -10,7 +10,10 @@ export default function Footer() {
             <img
               src={cldUrl(STATIC_IMAGES.logo, { w: 56 })}
               width={28}
-              alt="logo"
+              height={28}
+              alt=""
+              loading="lazy"
+              decoding="async"
             />
             <span className="footer-brand">Come by</span>
           </div>
@@ -42,8 +45,10 @@ export default function Footer() {
         </details>
       </div>
       <div className="footer-bottom">
-        © 2025 Come by. Всі права захищено. · made by{" "}
-        <a href="https://aokigahara.dev">Aokigahara</a>
+        © {new Date().getFullYear()} Come by. Всі права захищено. · made by{" "}
+        <a href="https://aokigahara.dev" target="_blank" rel="noopener noreferrer">
+          Aokigahara
+        </a>
       </div>
     </footer>
   );

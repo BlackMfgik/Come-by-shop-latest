@@ -1,6 +1,7 @@
 "use client";
 
 import { useThemeStore } from "@/store/themeStore";
+import { useHydrated } from "@/hooks/useHydrated";
 
 type AnimationType =
   | "circle-spread"
@@ -68,7 +69,8 @@ export function ToggleTheme({
   className = "",
 }: ToggleThemeProps) {
   const { theme, toggle } = useThemeStore();
-  const isDark = theme === "dark";
+  const hydrated = useHydrated();
+  const isDark = !hydrated || theme === "dark";
 
   async function handleToggle(e: React.MouseEvent<HTMLButtonElement>) {
     const next = isDark ? "light" : "dark";
@@ -114,7 +116,11 @@ export function ToggleTheme({
     `;
 
     if (vt) {
-      await vt(() => toggle());
+      // Атрибут ставимо синхронно, щоб View Transition зняв знімок нової теми
+      await vt(() => {
+        document.documentElement.setAttribute("data-theme", next);
+        toggle();
+      });
     } else {
       toggle();
     }
@@ -122,6 +128,7 @@ export function ToggleTheme({
 
   return (
     <button
+      type="button"
       onClick={handleToggle}
       className={`theme-toggle-classic ${className}`}
       aria-label={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}

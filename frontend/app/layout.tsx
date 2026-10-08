@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import Providers from "@/components/Providers";
 import "./globals.css";
@@ -35,14 +35,32 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0c0c0c" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f0" },
+  ],
+};
+
+// Застосовує збережену тему до першого малювання — без спалаху темної теми
+const themeScript = `try{var t=JSON.parse(localStorage.getItem("theme-storage")||"{}").state;if(t&&(t.theme==="light"||t.theme==="dark"))document.documentElement.setAttribute("data-theme",t.theme)}catch(e){}`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" data-scroll-behavior="smooth">
+    <html lang="uk" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link rel="preconnect" href="https://res.cloudinary.com" />
         <link
           rel="icon"
           type="image/jpeg"

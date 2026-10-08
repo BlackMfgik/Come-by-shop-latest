@@ -514,17 +514,20 @@ export async function apiConfirmEmailChange(
 /**
  * 🔌 ENDPOINT: GET /api/products
  * Query:    ?category=Напої  (опціонально)
- *           ?hidden=false    (за замовчуванням — приховані не повертаються)
+ * Headers:  Authorization — якщо передано токен адміна, повертаються і приховані товари
  * Response: Product[]
- * Cache:    revalidate кожні 60 секунд (next: { revalidate: 60 })
  */
-export async function apiGetProducts(category?: string): Promise<Product[]> {
+export async function apiGetProducts(
+  category?: string,
+  token?: string | null,
+): Promise<Product[]> {
   const url = new URL(`${BASE}/api/products`);
   if (category) url.searchParams.set("category", category);
 
-  const res = await apiFetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await apiFetch(url.toString(), { headers });
   return handleResponse<Product[]>(res);
 }
 
@@ -552,15 +555,24 @@ export async function apiGetCategories(): Promise<string[]> {
   return handleResponse<string[]>(res);
 }
 
+export interface ProductInput {
+  name: string;
+  description?: string;
+  weight?: string;
+  price: number;
+  image?: string;
+  category: string;
+}
+
 /**
  * 🔌 ENDPOINT: POST /api/products  [ADMIN ONLY]
  * Headers:  Authorization: Bearer <admin_token>
- * Request:  { name, description?, weight?, price, category?, imageUrl?, imageName? }
+ * Request:  { name, description?, weight?, price, category, image? }
  * Response: Product (новостворений, status 201)
  * Errors:   401 → "Unauthorized"
  */
 export async function apiCreateProduct(
-  data: Omit<Product, "id">,
+  data: ProductInput,
   token: string,
 ): Promise<Product> {
   const res = await apiFetch(`${BASE}/api/products`, {
@@ -578,7 +590,7 @@ export async function apiCreateProduct(
  */
 export async function apiUpdateProduct(
   id: number,
-  data: Partial<Product>,
+  data: Partial<ProductInput>,
   token: string,
 ): Promise<Product> {
   const res = await apiFetch(`${BASE}/api/products/${id}`, {
@@ -623,6 +635,27 @@ export async function apiToggleProductVisibility(
     body: JSON.stringify({ hidden }),
   });
   return handleResponse<Product>(res);
+}
+
+/**
+ * 🔌 ENDPOINT: POST /api/upload  (Next.js Route Handler)  [ADMIN ONLY]
+ * Request:  FormData { file }
+ * Response: { url: string }
+ * Errors:   400 → невалідний файл, 401/403 → не адмін
+ */
+export async function apiUploadImage(
+  file: File,
+  token: string,
+): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await apiFetch("/api/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+  const data = await handleResponse<{ url: string }>(res);
+  return data.url;
 }
 
 // ─── Зміна пароля з OTP ───────────────────────────────────────────────────────

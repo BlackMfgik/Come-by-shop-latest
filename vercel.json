@@ -2,11 +2,5 @@
   "buildCommand": "npm run build -w frontend",
   "outputDirectory": "frontend/.next",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://твій-backend-url.com/api/$1"
-    }
-  ]
+  "framework": "nextjs"
 }

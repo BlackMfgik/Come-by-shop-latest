@@ -1,5 +1,5 @@
 // src/routes/products.ts
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { eq, asc, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -9,17 +9,31 @@ import { requireAdmin } from "../middleware/requireAdmin.js";
 
 // ─── Zod schemas ─────────────────────────────────────────────────────────────
 
+// Порожній рядок з форми = поле не задано (для image — очистити зображення)
+const emptyToNull = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? null : v;
+
+const productFields = {
+  name: z.string().trim().min(1).max(255),
+  description: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  weight: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),
+  // Фронтенд надсилає число, decimal у БД очікує рядок
+  price: z
+    .union([z.number().nonnegative().finite(), z.string()])
+    .transform((v) => (typeof v === "number" ? v.toFixed(2) : v.trim()))
+    .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, "Невірний формат ціни")),
+  image: z.preprocess(emptyToNull, z.string().url().nullable().optional()),
+  category: z.string().trim().min(1).max(100),
+};
+
 const createProductSchema = z.object({
-  name: z.string().min(1).max(255),
-  description: z.string().optional(),
-  weight: z.string().max(50).optional(),
-  price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Невірний формат ціни"),
-  image: z.string().url().optional(),
-  category: z.string().min(1).max(100),
+  ...productFields,
   hidden: z.boolean().default(false),
 });
 
-const updateProductSchema = createProductSchema.partial();
+const updateProductSchema = z
+  .object({ ...productFields, hidden: z.boolean() })
+  .partial();
 
 const toggleHiddenSchema = z.object({
   hidden: z.boolean(),
@@ -45,15 +59,27 @@ function normalizeProduct(p: {
   return { ...p, price: Number(p.price) };
 }
 
+// Адмін бачить і приховані товари, щоб мати змогу знову їх показати
+async function isAdminRequest(request: FastifyRequest): Promise<boolean> {
+  if (!request.headers.authorization) return false;
+  try {
+    await request.jwtVerify();
+    return (request.user as { admin?: boolean }).admin === true;
+  } catch {
+    return false;
+  }
+}
+
 // ─── Route plugin ─────────────────────────────────────────────────────────────
 
 export async function productsRoutes(fastify: FastifyInstance): Promise<void> {
   // ── GET /api/products ──────────────────────────────────────────────────────
-  fastify.get("/", async (_request, reply) => {
+  fastify.get("/", async (request, reply) => {
+    const isAdmin = await isAdminRequest(request);
     const rows = await db
       .select()
       .from(products)
-      .where(eq(products.hidden, false))
+      .where(isAdmin ? undefined : eq(products.hidden, false))
       .orderBy(asc(products.createdAt));
 
     return reply.send(rows.map(normalizeProduct));

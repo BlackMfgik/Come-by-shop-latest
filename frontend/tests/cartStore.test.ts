@@ -33,6 +33,17 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("addItem", () => {
+  test("не мутує попередній стан при повторному додаванні", () => {
+    const { addItem } = useCartStore.getState();
+    addItem("Піца", 100, "/img.jpg", "", 1);
+    const before = useCartStore.getState().items[0];
+
+    addItem("Піца", 100, "/img.jpg", "", 1);
+
+    expect(before.quantity).toBe(1);
+    expect(useCartStore.getState().items[0].quantity).toBe(2);
+  });
+
   test("додає товар в порожній кошик", () => {
     const { addItem, items } = useCartStore.getState();
 

@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 
 export default function SessionSync() {
   const { data: session, status } = useSession();
-  const { saveAuth, logout, setHasHydrated, user } = useAuthStore();
+  const { saveAuth, logout, setHasHydrated, user, token } = useAuthStore();
 
   useEffect(() => {
     if (status === "loading") return;
@@ -15,7 +15,11 @@ export default function SessionSync() {
     setHasHydrated(true);
 
     if (status === "authenticated" && session) {
-      if (user === null) {
+      const stale =
+        user === null ||
+        String(user.id) !== session.user.id ||
+        (!!session.accessToken && token !== session.accessToken);
+      if (stale) {
         saveAuth(session.accessToken ?? `nextauth_${session.user.id}`, {
           ...session.user,
           id: Number(session.user.id),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
@@ -13,7 +14,9 @@ import {
   apiUpdateProduct,
   apiDeleteProduct,
   apiToggleProductVisibility,
+  apiUploadImage,
   getFriendlyErrorMessage,
+  type ProductInput,
 } from "@/lib/api";
 import type { Product } from "@/types";
 import {
@@ -92,6 +95,17 @@ function fuzzyFilter(items: Product[], query: string): Product[] {
 
 const PAGE_SIZE = 8;
 
+// Cloudinary віддає зменшену копію під потрібну ширину замість оригіналу
+function productImage(src: string | undefined, width: number): string {
+  if (!src) return cldUrl(STATIC_IMAGES.noImage, { w: width });
+  const marker = "res.cloudinary.com/";
+  const uploadSeg = "/image/upload/";
+  if (!src.includes(marker) || !src.includes(uploadSeg)) return src;
+  const [head, tail] = src.split(uploadSeg);
+  if (/^(f_|q_|w_|c_|h_)/.test(tail)) return src;
+  return `${head}${uploadSeg}f_auto,q_auto,c_limit,w_${width}/${tail}`;
+}
+
 const EMPTY_FORM = {
   name: "",
   description: "",
@@ -144,25 +158,32 @@ export default function ProductCatalog({
   const isNewCategory = form.category === "__new__";
   const effectiveCategory = isNewCategory ? form.customCategory : form.category;
 
+  const productsKey = ["products", isAdmin ? "admin" : "public"];
+
   const {
     data: products = initialProducts,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["products"],
-    queryFn: () => apiGetProducts(),
-    initialData: initialProducts,
+    queryKey: productsKey,
+    queryFn: () => apiGetProducts(undefined, isAdmin ? token : null),
+    initialData: isAdmin ? undefined : initialProducts,
     staleTime: 60_000,
   });
-  useMemo(() => {
+
+  // Скидаємо пагінацію при зміні фільтрів (без setState в useMemo)
+  const filterKey = `${effectiveQuery}|${activeCategory}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
     setPage(1);
-  }, [effectiveQuery, activeCategory]);
+  }
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["products"] });
 
   const createMutation = useMutation({
-    mutationFn: (payload: Omit<Product, "id">) =>
+    mutationFn: (payload: ProductInput) =>
       apiCreateProduct(payload, token!),
     onSuccess: () => {
       toast.success("Товар додано ✓");
@@ -175,7 +196,7 @@ export default function ProductCatalog({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Product> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: ProductInput }) =>
       apiUpdateProduct(id, payload, token!),
     onSuccess: () => {
       toast.success("Товар оновлено ✓");
@@ -202,21 +223,21 @@ export default function ProductCatalog({
       apiToggleProductVisibility(id, hidden, token!),
     // Оптимістичне оновлення — відразу показуємо зміну в UI без очікування сервера
     onMutate: async ({ id, hidden }) => {
-      await queryClient.cancelQueries({ queryKey: ["products"] });
-      const prev = queryClient.getQueryData<Product[]>(["products"]);
-      queryClient.setQueryData<Product[]>(["products"], (old = []) =>
+      await queryClient.cancelQueries({ queryKey: productsKey });
+      const prev = queryClient.getQueryData<Product[]>(productsKey);
+      queryClient.setQueryData<Product[]>(productsKey, (old = []) =>
         old.map((p) => (p.id === id ? { ...p, hidden } : p)),
       );
       return { prev };
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData<Product[]>(["products"], (old = []) =>
+      queryClient.setQueryData<Product[]>(productsKey, (old = []) =>
         old.map((p) => (p.id === updated.id ? updated : p)),
       );
       toast.success(updated.hidden ? "Товар приховано" : "Товар показано");
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["products"], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(productsKey, ctx.prev);
       toast.error("Не вдалося змінити видимість");
     },
     onSettled: () => setOverlayProductId(null),
@@ -228,18 +249,27 @@ export default function ProductCatalog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = {
-      name: form.name,
+    const price = parseFloat(form.price);
+    if (!Number.isFinite(price) || price < 0) {
+      toast.error("Вкажіть коректну ціну");
+      return;
+    }
+    if (!effectiveCategory.trim()) {
+      toast.error("Оберіть або введіть категорію");
+      return;
+    }
+    const payload: ProductInput = {
+      name: form.name.trim(),
       description: form.description,
       weight: form.weight,
-      price: parseFloat(form.price),
-      imageUrl: form.imageUrl,
-      category: effectiveCategory,
+      price,
+      image: form.imageUrl,
+      category: effectiveCategory.trim(),
     };
     if (editingId != null) {
       updateMutation.mutate({ id: editingId, payload });
     } else {
-      createMutation.mutate(payload as Omit<Product, "id">);
+      createMutation.mutate(payload);
     }
   }
 
@@ -265,14 +295,11 @@ export default function ProductCatalog({
   }
 
   async function handleFileUpload(file: File) {
+    if (!token) return;
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Помилка завантаження");
-      setForm((prev) => ({ ...prev, imageUrl: data.url }));
+      const url = await apiUploadImage(file, token);
+      setForm((prev) => ({ ...prev, imageUrl: url }));
       toast.success("Зображення завантажено ✓");
     } catch (err: unknown) {
       toast.error(getFriendlyErrorMessage(err, "Помилка завантаження"));
@@ -303,11 +330,24 @@ export default function ProductCatalog({
   });
 
   const filtered = fuzzyFilter(categoryFiltered, effectiveQuery);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSize = limit ?? PAGE_SIZE;
+  const totalPages = limit
+    ? 1
+    : Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const paginated = filtered
-    .slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
-    .slice(0, limit ?? undefined);
+  const paginated = filtered.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+  const hasMore = limit != null && filtered.length > limit;
+
+  function openCard(p: Product) {
+    if (isAdmin) {
+      setOverlayProductId(overlayProductId === p.id ? null : p.id);
+    } else {
+      setQuickViewProduct(p);
+    }
+  }
 
   function goToPage(p: number) {
     setPage(p);
@@ -844,7 +884,7 @@ export default function ProductCatalog({
         )}
 
         {!isLoading &&
-          paginated.map((p) => {
+          paginated.map((p, index) => {
             const isHidden = p.hidden === true;
             const showOverlay = isAdmin && overlayProductId === p.id;
 
@@ -853,25 +893,31 @@ export default function ProductCatalog({
                 className="product-card"
                 data-id={p.id}
                 key={p.id}
+                role="button"
+                tabIndex={0}
+                aria-label={p.name}
                 style={{
                   position: "relative",
                   cursor: "pointer",
                   opacity: isHidden && isAdmin ? 0.55 : 1,
                 }}
-                onClick={() => {
-                  if (isAdmin) {
-                    setOverlayProductId(
-                      overlayProductId === p.id ? null : p.id,
-                    );
-                  } else {
-                    setQuickViewProduct(p);
+                onClick={() => openCard(p)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openCard(p);
                   }
                 }}
               >
                 <div className="product-img">
                   <img
-                    src={p.image || cldUrl(STATIC_IMAGES.noImage)}
+                    src={productImage(p.image, 480)}
                     alt={p.name}
+                    loading={index < 4 ? "eager" : "lazy"}
+                    decoding="async"
+                    width={480}
+                    height={480}
                   />
                 </div>
                 <div className="product-info">
@@ -891,7 +937,7 @@ export default function ProductCatalog({
                         addItem(
                           p.name,
                           p.price,
-                          p.image || cldUrl(STATIC_IMAGES.noImage),
+                          productImage(p.image, 160),
                           p.description || "",
                           p.id,
                         );
@@ -991,7 +1037,16 @@ export default function ProductCatalog({
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {hasMore && (
+        <div className="catalog-more">
+          <Link href="/menu" className="catalog-more-btn">
+            Переглянути всі товари
+            <ChevronRight size={18} aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+
+      {!limit && filtered.length > 0 && (
         <p className="pagination-info">
           Показано {(safePage - 1) * PAGE_SIZE + 1}–
           {Math.min(safePage * PAGE_SIZE, filtered.length)} з {filtered.length}{" "}

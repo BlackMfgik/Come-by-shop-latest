@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import cloudinary from "@/lib/cloudinary";
 
+// Перевіряємо токен через бекенд: завантажувати можуть лише адміни
+async function isAdmin(req: NextRequest): Promise<boolean> {
+  const authorization = req.headers.get("authorization");
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!authorization?.startsWith("Bearer ") || !base) return false;
+  try {
+    const res = await fetch(`${base}/api/auth/me`, {
+      headers: { Authorization: authorization },
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const user = (await res.json()) as { admin?: boolean };
+    return user.admin === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
+  if (!(await isAdmin(req))) {
+    return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

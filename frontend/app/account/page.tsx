@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { signOut } from "next-auth/react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
@@ -317,6 +318,14 @@ function AccountPageContent() {
   const initialTab = (searchParams.get("tab") as Tab) ?? "profile";
   const [tab, setTab] = useState<Tab>(initialTab);
 
+  async function handleLogout() {
+    logout();
+    queryClient.clear();
+    // Без signOut сесія NextAuth лишається і SessionSync знову логінить юзера
+    await signOut({ redirect: false });
+    router.push("/login");
+  }
+
   // Поля що редагуються через старий EditModal (тільки name та address)
   const [editField, setEditField] = useState<Extract<
     Field,
@@ -584,14 +593,13 @@ function AccountPageContent() {
                   className="account-item logout-item"
                   role="button"
                   tabIndex={0}
-                  onClick={() => {
-                    logout();
-                    document.cookie = "token=; path=/; max-age=0";
-                    router.push("/login");
+                  onClick={handleLogout}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleLogout();
+                    }
                   }}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && (logout(), router.push("/login"))
-                  }
                 >
                   <div className="item-info">
                     <span className="account-item-icon">

@@ -16,6 +16,7 @@ import {
   SearchIcon,
 } from "./ui/input-group";
 import { useSearchStore } from "@/store/searchStore.ts";
+import { useHydrated } from "@/hooks/useHydrated";
 
 const SEARCH_PAGES = ["/", "/menu", "/shop", "/combo"];
 const CART_PAGES = ["/", "/menu", "/shop", "/combo", "/about-us"];
@@ -29,6 +30,7 @@ const NAV_LINKS = [
 ];
 
 export default function Header() {
+  const hydrated = useHydrated();
   const { user } = useAuthStore();
   const { items } = useCartStore();
   const router = useRouter();
@@ -52,7 +54,7 @@ export default function Header() {
     }
   }, [pathname]);
 
-  const cartCount = items.reduce((s, i) => s + i.quantity, 0);
+  const cartCount = hydrated ? items.reduce((s, i) => s + i.quantity, 0) : 0;
 
   useEffect(() => {
     if (searchOpen) setTimeout(() => inputRef.current?.focus(), 50);
@@ -63,6 +65,7 @@ export default function Header() {
       if (e.key === "Escape") {
         setSearchOpen(false);
         setCartOpen(false);
+        setNavOpen(false);
       }
     };
     document.addEventListener("keydown", handler);
@@ -110,9 +113,11 @@ export default function Header() {
       <header>
         <Link className="logo" href="/" aria-label="Повернутись на головну">
           <img
-            src={cldUrl(STATIC_IMAGES.logo, { w: 56 })}
+            src={cldUrl(STATIC_IMAGES.logo, { w: 76 })}
             className="logo-img"
-            alt="logo"
+            alt=""
+            width={38}
+            height={38}
           />
           Come by
         </Link>
@@ -190,41 +195,29 @@ export default function Header() {
           )}
 
           {showCart && (
-            <div
+            <button
+              type="button"
               className="icons-shopping"
-              style={{ position: "relative" }}
+              aria-label={
+                cartCount > 0 ? `Кошик, товарів: ${cartCount}` : "Кошик"
+              }
+              aria-expanded={cartOpen}
+              aria-controls="cart-sidebar"
               onClick={() => setCartOpen((o) => !o)}
             >
-              <ShoppingCart size={24} />
+              <ShoppingCart size={24} aria-hidden="true" />
               {cartCount > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 4,
-                    right: 4,
-                    background: "#009956",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    fontSize: "0.6rem",
-                    width: 16,
-                    height: 16,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {cartCount}
+                <span className="cart-badge" aria-hidden="true">
+                  {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
-            </div>
+            </button>
           )}
 
           {!isAccountPage && (
             <Link
               className="icons-user"
-              href={user ? "/account" : "/login"}
+              href={hydrated && user ? "/account" : "/login"}
               id="user-link"
               aria-label="Акаунт"
             >
@@ -235,13 +228,17 @@ export default function Header() {
           <ThemeToggle />
         </div>
 
-        <div
+        <button
+          type="button"
           className="burger"
           id="burger"
+          aria-label={navOpen ? "Закрити меню" : "Відкрити меню"}
+          aria-expanded={navOpen}
+          aria-controls="nav"
           onClick={() => setNavOpen((o) => !o)}
         >
-          <Menu size={24} />
-        </div>
+          <Menu size={24} aria-hidden="true" />
+        </button>
       </header>
 
       <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
