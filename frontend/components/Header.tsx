@@ -113,7 +113,7 @@ export default function Header() {
       <header>
         <Link className="logo" href="/" aria-label="Повернутись на головну">
           <img
-            src={cldUrl(STATIC_IMAGES.logo, { w: 76 })}
+            src={cldUrl(STATIC_IMAGES.logo, { w: 56 })}
             className="logo-img"
             alt=""
             width={38}

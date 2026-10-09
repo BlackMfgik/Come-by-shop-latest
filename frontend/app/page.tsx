@@ -7,7 +7,10 @@ import Footer from "@/components/Footer";
 import ProductCatalog from "@/components/ProductCatalog";
 import Loading from "./loading";
 import type { Product } from "@/types";
-import { cldUrl, STATIC_IMAGES } from "@/lib/cld";
+import { STATIC_IMAGES } from "@/lib/cld";
+
+// Той самий URL, що й у старому дизайні: інші комбінації трансформацій Cloudinary може не віддавати
+const HERO_IMAGE = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "dk9yjgta3"}/image/upload/a_-90,f_webp,q_auto/${STATIC_IMAGES.hero}`;
 
 export const metadata: Metadata = {
   title: "Come by Shop — Замовляй їжу та продукти онлайн",
@@ -70,7 +73,7 @@ export default async function HomePage() {
           </div>
           <figure className="hero-photo">
             <img
-              src={cldUrl(STATIC_IMAGES.hero, { w: 1200, angle: -90 })}
+              src={HERO_IMAGE}
               alt="Свіжі фрукти й овочі"
               width={1200}
               height={1200}

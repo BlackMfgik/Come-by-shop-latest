@@ -6,7 +6,7 @@
  */
 export function cldUrl(
   publicId: string,
-  opts: { w?: number; h?: number; crop?: string; angle?: number } = {},
+  opts: { w?: number; h?: number; crop?: string } = {},
 ): string {
   const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   if (!cloud) {
@@ -19,10 +19,7 @@ export function cldUrl(
   if (opts.h) transforms.push(`h_${opts.h}`);
   if (opts.crop) transforms.push(`c_${opts.crop}`);
 
-  // Поворот окремим кроком, щоб він застосувався до зміни розміру
-  const rotate = opts.angle ? `a_${opts.angle}/` : "";
-
-  return `https://res.cloudinary.com/${cloud}/image/upload/${rotate}${transforms.join(",")}/${publicId}`;
+  return `https://res.cloudinary.com/${cloud}/image/upload/${transforms.join(",")}/${publicId}`;
 }
 
 /**

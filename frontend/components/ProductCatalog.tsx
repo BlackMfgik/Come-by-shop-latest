@@ -95,7 +95,7 @@ const PAGE_SIZE = 8;
 
 // Cloudinary віддає зменшену копію під потрібну ширину замість оригіналу
 function productImage(src: string | undefined, width: number): string {
-  if (!src) return cldUrl(STATIC_IMAGES.noImage, { w: width });
+  if (!src) return cldUrl(STATIC_IMAGES.noImage);
   const marker = "res.cloudinary.com/";
   const uploadSeg = "/image/upload/";
   if (!src.includes(marker) || !src.includes(uploadSeg)) return src;
@@ -912,6 +912,12 @@ export default function ProductCatalog({
                   <img
                     src={productImage(p.image, 480)}
                     alt={p.name}
+                    onError={(e) => {
+                      // Якщо Cloudinary не віддає зменшену копію — показуємо оригінал
+                      const original = p.image || cldUrl(STATIC_IMAGES.noImage);
+                      if (e.currentTarget.src !== original)
+                        e.currentTarget.src = original;
+                    }}
                     loading={index < 4 ? "eager" : "lazy"}
                     decoding="async"
                     width={480}
@@ -935,7 +941,7 @@ export default function ProductCatalog({
                         addItem(
                           p.name,
                           p.price,
-                          productImage(p.image, 160),
+                          p.image || cldUrl(STATIC_IMAGES.noImage),
                           p.description || "",
                           p.id,
                         );
