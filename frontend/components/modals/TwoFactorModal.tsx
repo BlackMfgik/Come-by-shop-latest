@@ -9,7 +9,7 @@
  *
  * Tasks: 2, 3, 4, 5
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Countdown, { type CountdownRenderProps } from "react-countdown";
@@ -45,7 +45,8 @@ function ResendTimer({
   onResend: () => void;
   loading: boolean;
 }) {
-  const target = Date.now() + seconds * 1000;
+  // Фіксуємо момент завершення один раз — інакше таймер скидається при кожному рендері
+  const [target] = useState(() => Date.now() + seconds * 1000);
 
   function renderer({ seconds: s, completed }: CountdownRenderProps) {
     if (completed) {
@@ -79,7 +80,7 @@ function ResendTimer({
 
   return (
     <div style={{ textAlign: "center", marginTop: 14 }}>
-      <Countdown key={target} date={target} renderer={renderer} />
+      <Countdown date={target} renderer={renderer} />
     </div>
   );
 }
@@ -111,7 +112,7 @@ export default function TwoFactorModal({
 
   // Авто-підтвердження при 6 цифрах
   useEffect(() => {
-    if (code.length === 6) {
+    if (/^\d{6}$/.test(code ?? "")) {
       handleSubmit(handleVerify)();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,7 +280,7 @@ export default function TwoFactorModal({
           <button
             className="btn btn-primary"
             type="submit"
-            disabled={code.length < 6 || isSubmitting}
+            disabled={!/^\d{6}$/.test(code ?? "") || isSubmitting}
           >
             {isSubmitting ? "Перевіряємо…" : "Підтвердити"}
           </button>

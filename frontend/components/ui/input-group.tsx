@@ -12,7 +12,7 @@ interface InputGroupAddonProps {
   align?: "inline-start" | "inline-end";
 }
 
-interface InputGroupInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+type InputGroupInputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 export function InputGroup({ children, className = "" }: InputGroupProps) {
   return <div className={`input-group ${className}`}>{children}</div>;

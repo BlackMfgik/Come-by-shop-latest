@@ -29,8 +29,6 @@ import {
   X,
   Plus,
   Upload,
-  ImageIcon,
-  Link as LinkIcon,
   X as XIcon,
 } from "lucide-react";
 import SkeletonCard from "@/components/ui/SkeletonCard";

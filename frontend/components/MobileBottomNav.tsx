@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, UtensilsCrossed, ShoppingCart, User } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useHydrated } from "@/hooks/useHydrated";
 
 const NAV = [
   { href: "/", icon: <Home size={22} />, label: "Головна" },
@@ -14,9 +15,11 @@ const NAV = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const count = useCartStore((s) =>
+  const hydrated = useHydrated();
+  const storedCount = useCartStore((s) =>
     s.items.reduce((a, i) => a + i.quantity, 0),
   );
+  const count = hydrated ? storedCount : 0;
 
   return (
     <nav className="mobile-bottom-nav" aria-label="Навігація">

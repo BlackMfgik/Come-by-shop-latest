@@ -5,6 +5,7 @@ import { eq, desc, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { orders, orderItems, products, users } from "../db/schema.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 
 // ─── Zod schemas ─────────────────────────────────────────────────────────────
 
@@ -13,10 +14,31 @@ const createOrderSchema = z.object({
     .array(
       z.object({
         productId: z.number().int().positive(),
-        quantity: z.number().int().min(1),
+        quantity: z.number().int().min(1).max(99),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(50),
+});
+
+export const ORDER_STATUSES = [
+  "В обробці",
+  "Оплачено",
+  "Новий",
+  "Підтверджено",
+  "Готується",
+  "Передано кур'єру",
+  "В дорозі",
+  "Доставлено",
+  "Скасовано",
+] as const;
+
+const updateStatusSchema = z.object({
+  status: z.enum(ORDER_STATUSES),
+});
+
+const idParamSchema = z.object({
+  id: z.string().regex(/^\d+$/).transform(Number),
 });
 
 // ─── JWT payload type ─────────────────────────────────────────────────────────
@@ -47,6 +69,53 @@ function normalizeOrder(
     })),
   };
 }
+
+type AdminOrderRow = {
+  order: typeof orders.$inferSelect;
+  user: {
+    name: string | null;
+    email: string;
+    phone: string | null;
+    address: string | null;
+  } | null;
+};
+
+async function loadAdminOrders(rows: AdminOrderRow[]) {
+  if (rows.length === 0) return [];
+  const allItems = await db
+    .select()
+    .from(orderItems)
+    .where(
+      inArray(
+        orderItems.orderId,
+        rows.map((r) => r.order.id),
+      ),
+    );
+  const itemsMap = new Map<number, (typeof orderItems.$inferSelect)[]>();
+  for (const item of allItems) {
+    const list = itemsMap.get(item.orderId) ?? [];
+    list.push(item);
+    itemsMap.set(item.orderId, list);
+  }
+  return rows.map(({ order, user }) => ({
+    ...normalizeOrder(order, itemsMap.get(order.id) ?? []),
+    userId: order.userId,
+    userName: user?.name ?? "",
+    userEmail: user?.email ?? "",
+    userPhone: user?.phone ?? "",
+    userAddress: user?.address ?? "",
+  }));
+}
+
+const adminOrderSelect = {
+  order: orders,
+  user: {
+    name: users.name,
+    email: users.email,
+    phone: users.phone,
+    address: users.address,
+  },
+};
 
 // ─── Route plugin ─────────────────────────────────────────────────────────────
 
@@ -87,6 +156,58 @@ export async function ordersRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send(result);
   });
+
+  // ── GET /api/orders/admin (admin) ──────────────────────────────────────────
+  fastify.get(
+    "/admin",
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      const rows = await db
+        .select(adminOrderSelect)
+        .from(orders)
+        .leftJoin(users, eq(orders.userId, users.id))
+        .orderBy(desc(orders.createdAt))
+        .limit(500);
+
+      return reply.send(await loadAdminOrders(rows));
+    },
+  );
+
+  // ── PATCH /api/orders/:id (admin) — зміна статусу ─────────────────────────
+  fastify.patch<{ Params: { id: string } }>(
+    "/:id",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const params = idParamSchema.safeParse(request.params);
+      if (!params.success) {
+        return reply.code(400).send({ error: "Невірний ID" });
+      }
+      const body = updateStatusSchema.safeParse(request.body);
+      if (!body.success) {
+        return reply.code(400).send({ error: "Невірний статус" });
+      }
+
+      const [updated] = await db
+        .update(orders)
+        .set({ status: body.data.status })
+        .where(eq(orders.id, params.data.id))
+        .returning({ id: orders.id });
+
+      if (!updated) {
+        return reply.code(404).send({ error: "Замовлення не знайдено" });
+      }
+
+      const rows = await db
+        .select(adminOrderSelect)
+        .from(orders)
+        .leftJoin(users, eq(orders.userId, users.id))
+        .where(eq(orders.id, updated.id))
+        .limit(1);
+
+      const [result] = await loadAdminOrders(rows);
+      return reply.send(result);
+    },
+  );
 
   // ── POST /api/orders ───────────────────────────────────────────────────────
   fastify.post("/", { preHandler: requireAuth }, async (request, reply) => {

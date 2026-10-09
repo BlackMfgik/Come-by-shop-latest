@@ -658,6 +658,56 @@ export async function apiUploadImage(
   return data.url;
 }
 
+// ─── Адмін: замовлення ────────────────────────────────────────────────────────
+
+export interface AdminOrder {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  userAddress: string;
+  createdAt: string;
+  status: string;
+  items: Array<{
+    productId: number | null;
+    productName: string;
+    quantity: number;
+    price: number;
+  }>;
+  total: number;
+}
+
+/**
+ * 🔌 ENDPOINT: GET /api/orders/admin  [ADMIN ONLY]
+ * Response: AdminOrder[] — останні 500 замовлень з контактами покупця
+ */
+export async function apiGetAdminOrders(token: string): Promise<AdminOrder[]> {
+  const res = await apiFetch(`${BASE}/api/orders/admin`, {
+    headers: authHeaders(token),
+  });
+  return handleResponse<AdminOrder[]>(res);
+}
+
+/**
+ * 🔌 ENDPOINT: PATCH /api/orders/:id  [ADMIN ONLY]
+ * Request:  { status }
+ * Response: AdminOrder
+ * Errors:   400 → "Невірний статус", 404 → "Замовлення не знайдено"
+ */
+export async function apiUpdateOrderStatus(
+  id: number,
+  status: string,
+  token: string,
+): Promise<AdminOrder> {
+  const res = await apiFetch(`${BASE}/api/orders/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify({ status }),
+  });
+  return handleResponse<AdminOrder>(res);
+}
+
 // ─── Зміна пароля з OTP ───────────────────────────────────────────────────────
 
 /**
@@ -773,35 +823,3 @@ export async function apiGetMyOrders(token: string): Promise<Order[]> {
   return handleResponse<Order[]>(res);
 }
 
-// ─── Admin: Orders ────────────────────────────────────────────────────────────
-
-/**
- * 🔌 ENDPOINT: GET /api/orders/admin  [ADMIN ONLY]
- * Response: AdminOrder[]  — всі замовлення з даними юзерів, новіші спочатку
- * Errors:   401 → "Unauthorized", 403 → "Forbidden"
- */
-export async function apiGetAdminOrders(token: string): Promise<unknown[]> {
-  const res = await apiFetch(`${BASE}/api/orders/admin`, {
-    headers: authHeaders(token),
-  });
-  return handleResponse<unknown[]>(res);
-}
-
-/**
- * 🔌 ENDPOINT: PATCH /api/orders/:id  [ADMIN ONLY]
- * Request:  { status: string }
- * Response: оновлене замовлення
- * Errors:   404 → "Not found", 400 → "Невалідний статус"
- */
-export async function apiUpdateOrderStatus(
-  id: number,
-  status: string,
-  token: string,
-): Promise<unknown> {
-  const res = await apiFetch(`${BASE}/api/orders/${id}`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify({ status }),
-  });
-  return handleResponse<unknown>(res);
-}

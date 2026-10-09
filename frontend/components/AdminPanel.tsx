@@ -11,7 +11,10 @@ import {
   apiDeleteProduct,
   apiToggleProductVisibility,
   apiUploadImage,
+  apiGetAdminOrders,
+  apiUpdateOrderStatus,
   getFriendlyErrorMessage,
+  type AdminOrder,
   type ProductInput,
 } from "@/lib/api";
 import type { Product } from "@/types";
@@ -29,15 +32,14 @@ import {
   Mail,
   User,
   Clock,
+  MapPin,
   CheckCircle2,
   Truck,
   PackageCheck,
   XCircle,
   ChefHat,
   Package,
-  Upload,
   ImageIcon,
-  Link as LinkIcon,
   X as XIcon,
 } from "lucide-react";
 import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
@@ -46,6 +48,8 @@ import { cldUrl, STATIC_IMAGES } from "@/lib/cld";
 // ─── Типи ─────────────────────────────────────────────────────────────────────
 
 const ORDER_STATUSES = [
+  "В обробці",
+  "Оплачено",
   "Новий",
   "Підтверджено",
   "Готується",
@@ -57,22 +61,6 @@ const ORDER_STATUSES = [
 
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-interface AdminOrder {
-  id: number;
-  userId: number;
-  userName: string;
-  userEmail: string;
-  userPhone: string;
-  createdAt: string;
-  status: string;
-  items: Array<{
-    productId: number;
-    productName: string;
-    quantity: number;
-    price: number;
-  }>;
-  total: number;
-}
 
 // ─── Конфіг статусів ──────────────────────────────────────────────────────────
 
@@ -85,6 +73,18 @@ const STATUS_CONFIG: Record<
     next: OrderStatus[];
   }
 > = {
+  "В обробці": {
+    color: "#1565C0",
+    bg: "rgba(21,101,192,0.12)",
+    icon: <Clock size={13} />,
+    next: ["Підтверджено", "Скасовано"],
+  },
+  Оплачено: {
+    color: "#2E7D32",
+    bg: "rgba(46,125,50,0.12)",
+    icon: <CheckCircle2 size={13} />,
+    next: ["Підтверджено", "Скасовано"],
+  },
   Новий: {
     color: "#1565C0",
     bg: "rgba(21,101,192,0.12)",
@@ -399,6 +399,20 @@ function OrderCard({
                 {order.userPhone}
               </a>
             )}
+            {order.userAddress && (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <MapPin size={13} />
+                {order.userAddress}
+              </span>
+            )}
             {order.userEmail && (
               <a
                 href={`mailto:${order.userEmail}`}
@@ -619,16 +633,11 @@ function OrdersTab({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [filter, setFilter] = useState("Усі");
-  const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/orders/admin`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Не вдалося завантажити замовлення");
-      setOrders(await res.json());
+      setOrders(await apiGetAdminOrders(token));
     } catch {
       toast.error("Не вдалося завантажити замовлення");
     } finally {
@@ -643,16 +652,7 @@ function OrdersTab({ token }: { token: string }) {
   async function handleStatusChange(orderId: number, newStatus: OrderStatus) {
     setUpdatingId(orderId);
     try {
-      const res = await fetch(`${BASE}/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error("Не вдалося змінити статус замовлення");
-      const updated: AdminOrder = await res.json();
+      const updated = await apiUpdateOrderStatus(orderId, newStatus, token);
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
       toast(`Замовлення #${orderId} → ${newStatus}`);
     } catch {

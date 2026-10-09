@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { signOut } from "next-auth/react";
@@ -11,7 +11,7 @@ import {
   apiGetMyOrders,
   getFriendlyErrorMessage,
 } from "@/lib/api";
-import type { Order, UserInfo } from "@/types";
+import type { UserInfo } from "@/types";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import EmptyState from "@/components/ui/EmptyState";

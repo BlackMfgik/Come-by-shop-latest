@@ -4,6 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { eq, and } from "drizzle-orm";
+import { OAuth2Client } from "google-auth-library";
 import { db } from "../db/index.js";
 import {
   users,
@@ -65,10 +66,27 @@ const twoFaVerifySchema = z.object({
 });
 
 const googleAuthSchema = z.object({
-  email: z.string().email(),
-  name: z.string().optional(),
-  image: z.string().optional(),
+  idToken: z.string().min(1),
 });
+
+const googleClient = new OAuth2Client();
+
+// Email береться лише з підписаного Google ID-токена, а не з тіла запиту
+async function verifyGoogleIdToken(
+  idToken: string,
+): Promise<{ email: string; name?: string | undefined } | null> {
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.email || payload.email_verified !== true) return null;
+    return { email: payload.email, name: payload.name };
+  } catch {
+    return null;
+  }
+}
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(255).optional(),
@@ -181,7 +199,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
       const normalizedEmail = email.toLowerCase();
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const code = generateOtp();
       const expiresAt = new Date(Date.now() + OTP_TTL_EMAIL_MS);
       const pendingDeviceId = deviceId ?? "email-verify";
 
@@ -223,12 +241,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      return reply
-        .code(201)
-        .send({
-          requires_verification: true,
-          pendingRegistrationId: pending.id,
-        });
+      return reply.code(201).send({
+        requires_verification: true,
+        pendingRegistrationId: pending.id,
+      });
     },
   );
 
@@ -292,9 +308,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         await db
           .delete(pendingRegistrations)
           .where(eq(pendingRegistrations.id, pendingRegistrationId));
-        return reply
-          .code(409)
-          .send({ error: "Email вже використовується" });
+        return reply.code(409).send({ error: "Email вже використовується" });
       }
 
       const [user] = await db
@@ -341,10 +355,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       const { pendingRegistrationId } = request.body as {
         pendingRegistrationId?: number;
       };
-      if (
-        !pendingRegistrationId ||
-        typeof pendingRegistrationId !== "number"
-      ) {
+      if (!pendingRegistrationId || typeof pendingRegistrationId !== "number") {
         return reply.code(400).send({ error: "Невірні дані" });
       }
 
@@ -360,8 +371,8 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const code = generateOtp();
+      const expiresAt = new Date(Date.now() + OTP_TTL_EMAIL_MS);
 
       await db
         .update(pendingRegistrations)
@@ -426,7 +437,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
       if (knownDevice.length === 0) {
         // Unknown device → require 2FA
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = generateOtp();
         const expiresAt = new Date(Date.now() + OTP_TTL_2FA_MS);
 
         await db
@@ -450,10 +461,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
         // Додатково SMS якщо є верифікований телефон
         if (user.phone && user.phoneVerified) {
-          await sendSms(
-            user.phone,
-            `Come by Shop: код підтвердження ${code}. Дійсний 10 хвилин.`,
-          );
+          try {
+            await sendSms(
+              user.phone,
+              `Come by Shop: код підтвердження ${code}. Дійсний 10 хвилин.`,
+            );
+          } catch (err) {
+            // Код уже надіслано на email — збій SMS не блокує вхід
+            request.log.warn({ err }, "Failed to send two-factor SMS");
+          }
         }
 
         return reply.send({ requires_2fa: true, userId: user.id });
@@ -515,106 +531,128 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   // ── POST /api/auth/2fa/verify ──────────────────────────────────────────────
-  fastify.post("/2fa/verify", async (request, reply) => {
-    const result = twoFaVerifySchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ error: "Невірні дані" });
-    }
-    const { userId, deviceId, code } = result.data;
+  fastify.post(
+    "/2fa/verify",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const result = twoFaVerifySchema.safeParse(request.body);
+      if (!result.success) {
+        return reply.code(400).send({ error: "Невірні дані" });
+      }
+      const { userId, deviceId, code } = result.data;
 
-    const [record] = await db
-      .select()
-      .from(twoFactorCodes)
-      .where(eq(twoFactorCodes.userId, userId))
-      .limit(1);
+      const [record] = await db
+        .select()
+        .from(twoFactorCodes)
+        .where(eq(twoFactorCodes.userId, userId))
+        .limit(1);
 
-    if (!record) {
-      return reply.code(400).send({ error: "Код не знайдено" });
-    }
+      if (!record) {
+        return reply.code(400).send({ error: "Код не знайдено" });
+      }
 
-    if (record.attempts >= MAX_OTP_ATTEMPTS) {
-      await db.delete(twoFactorCodes).where(eq(twoFactorCodes.userId, userId));
-      return reply
-        .code(429)
-        .send({ error: "Забагато спроб. Запросіть новий код." });
-    }
+      if (record.attempts >= MAX_OTP_ATTEMPTS) {
+        await db
+          .delete(twoFactorCodes)
+          .where(eq(twoFactorCodes.userId, userId));
+        return reply
+          .code(429)
+          .send({ error: "Забагато спроб. Запросіть новий код." });
+      }
 
-    if (new Date() > record.expiresAt) {
-      await db.delete(twoFactorCodes).where(eq(twoFactorCodes.userId, userId));
-      return reply.code(400).send({ error: "Код прострочено" });
-    }
+      if (new Date() > record.expiresAt) {
+        await db
+          .delete(twoFactorCodes)
+          .where(eq(twoFactorCodes.userId, userId));
+        return reply.code(400).send({ error: "Код прострочено" });
+      }
 
-    if (!timingSafeCompare(record.code, code) || record.deviceId !== deviceId) {
+      if (
+        !timingSafeCompare(record.code, code) ||
+        record.deviceId !== deviceId
+      ) {
+        await db
+          .update(twoFactorCodes)
+          .set({ attempts: record.attempts + 1 })
+          .where(eq(twoFactorCodes.userId, userId));
+        return reply.code(400).send({ error: "Невірний код" });
+      }
+
+      // Code is valid — register device and delete code
       await db
-        .update(twoFactorCodes)
-        .set({ attempts: record.attempts + 1 })
-        .where(eq(twoFactorCodes.userId, userId));
-      return reply.code(400).send({ error: "Невірний код" });
-    }
+        .insert(userDevices)
+        .values({ userId, deviceId })
+        .onConflictDoNothing();
 
-    // Code is valid — register device and delete code
-    await db
-      .insert(userDevices)
-      .values({ userId, deviceId })
-      .onConflictDoNothing();
+      await db.delete(twoFactorCodes).where(eq(twoFactorCodes.userId, userId));
 
-    await db.delete(twoFactorCodes).where(eq(twoFactorCodes.userId, userId));
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+      if (!user) {
+        return reply.code(404).send({ error: "Користувача не знайдено" });
+      }
 
-    if (!user) {
-      return reply.code(404).send({ error: "Користувача не знайдено" });
-    }
+      const token = signToken(fastify, {
+        id: user.id,
+        email: user.email,
+        admin: user.admin,
+      });
 
-    const token = signToken(fastify, {
-      id: user.id,
-      email: user.email,
-      admin: user.admin,
-    });
-
-    return reply.send({ token, user: safeUser(user) });
-  });
+      return reply.send({ token, user: safeUser(user) });
+    },
+  );
 
   // ── POST /api/auth/google ──────────────────────────────────────────────────
-  fastify.post("/google", async (request, reply) => {
-    const result = googleAuthSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ error: "Невірні дані" });
-    }
-    const { email, name } = result.data;
-
-    const normalizedEmail = email.toLowerCase();
-    const displayName = name ?? normalizedEmail.split("@")[0] ?? "User";
-
-    let [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, normalizedEmail))
-      .limit(1);
-
-    if (!user) {
-      const [created] = await db
-        .insert(users)
-        .values({ email: normalizedEmail, name: displayName })
-        .returning();
-      if (!created) {
-        return reply.code(500).send({ error: "Помилка створення користувача" });
+  fastify.post(
+    "/google",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const result = googleAuthSchema.safeParse(request.body);
+      if (!result.success) {
+        return reply.code(400).send({ error: "Невірні дані" });
       }
-      user = created;
-    }
 
-    const token = signToken(fastify, {
-      id: user.id,
-      email: user.email,
-      admin: user.admin,
-    });
+      const googleUser = await verifyGoogleIdToken(result.data.idToken);
+      if (!googleUser) {
+        return reply.code(401).send({ error: "Недійсний токен Google" });
+      }
+      const { email, name } = googleUser;
 
-    return reply.send({ token, user: safeUser(user) });
-  });
+      const normalizedEmail = email.toLowerCase();
+      const displayName = name ?? normalizedEmail.split("@")[0] ?? "User";
+
+      let [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, normalizedEmail))
+        .limit(1);
+
+      if (!user) {
+        const [created] = await db
+          .insert(users)
+          .values({ email: normalizedEmail, name: displayName })
+          .returning();
+        if (!created) {
+          return reply
+            .code(500)
+            .send({ error: "Помилка створення користувача" });
+        }
+        user = created;
+      }
+
+      const token = signToken(fastify, {
+        id: user.id,
+        email: user.email,
+        admin: user.admin,
+      });
+
+      return reply.send({ token, user: safeUser(user) });
+    },
+  );
 
   // ── GET /api/auth/me ───────────────────────────────────────────────────────
   fastify.get("/me", { preHandler: requireAuth }, async (request, reply) => {
@@ -670,7 +708,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── PUT /api/auth/password ─────────────────────────────────────────────────
   fastify.put(
     "/password",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = changePasswordSchema.safeParse(request.body);
@@ -754,39 +795,43 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   // ── POST /api/auth/reset-password/confirm ─────────────────────────────────
-  fastify.post("/reset-password/confirm", async (request, reply) => {
-    const result = resetPasswordConfirmSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ error: "Невірні дані" });
-    }
-    const { token, newPassword } = result.data;
+  fastify.post(
+    "/reset-password/confirm",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const result = resetPasswordConfirmSchema.safeParse(request.body);
+      if (!result.success) {
+        return reply.code(400).send({ error: "Невірні дані" });
+      }
+      const { token, newPassword } = result.data;
 
-    const [record] = await db
-      .select()
-      .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.token, token))
-      .limit(1);
+      const [record] = await db
+        .select()
+        .from(passwordResetTokens)
+        .where(eq(passwordResetTokens.token, token))
+        .limit(1);
 
-    if (!record || record.used || new Date() > record.expiresAt) {
-      return reply
-        .code(400)
-        .send({ error: "Недійсний або прострочений токен" });
-    }
+      if (!record || record.used || new Date() > record.expiresAt) {
+        return reply
+          .code(400)
+          .send({ error: "Недійсний або прострочений токен" });
+      }
 
-    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-    await db
-      .update(users)
-      .set({ passwordHash: newHash, updatedAt: new Date() })
-      .where(eq(users.id, record.userId));
+      await db
+        .update(users)
+        .set({ passwordHash: newHash, updatedAt: new Date() })
+        .where(eq(users.id, record.userId));
 
-    await db
-      .update(passwordResetTokens)
-      .set({ used: true })
-      .where(eq(passwordResetTokens.id, record.id));
+      await db
+        .update(passwordResetTokens)
+        .set({ used: true })
+        .where(eq(passwordResetTokens.userId, record.userId));
 
-    return reply.send({ ok: true });
-  });
+      return reply.send({ ok: true });
+    },
+  );
 
   // ── POST /api/auth/phone/send-otp ─────────────────────────────────────────
   fastify.post(
@@ -828,7 +873,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/phone/verify-otp ───────────────────────────────────────
   fastify.post(
     "/phone/verify-otp",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = verifyOtpSchema.safeParse(request.body);
@@ -898,7 +946,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/change-email/request ───────────────────────────────────
   fastify.post(
     "/change-email/request",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 3, timeWindow: "10 minutes" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = changeEmailRequestSchema.safeParse(request.body);
@@ -960,7 +1011,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/change-email/confirm ───────────────────────────────────
   fastify.post(
     "/change-email/confirm",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 5, timeWindow: "10 minutes" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = changeEmailConfirmSchema.safeParse(request.body);
@@ -1017,7 +1071,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/password-change/request ────────────────────────────────
   fastify.post(
     "/password-change/request",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 3, timeWindow: "10 minutes" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = passwordChangeRequestSchema.safeParse(request.body);
@@ -1074,7 +1131,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/password-change/confirm ────────────────────────────────
   fastify.post(
     "/password-change/confirm",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
       const result = passwordChangeConfirmSchema.safeParse(request.body);
@@ -1139,7 +1199,10 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /api/auth/verify-password ────────────────────────────────────────
   fastify.post(
     "/verify-password",
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       const payload = request.user as JwtPayload;
 

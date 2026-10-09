@@ -213,4 +213,40 @@ describe("Orders routes", () => {
       (db as any).then = originalThen;
     });
   });
+
+  describe("admin order endpoints", () => {
+    it("GET /api/orders/admin returns 401 without token", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/orders/admin",
+      });
+      expect(response.statusCode).toBe(401);
+    });
+
+    it("GET /api/orders/admin returns 403 for non-admin", async () => {
+      const token = app.jwt.sign({ id: 1, email: "u@test.com", admin: false });
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/orders/admin",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("PATCH /api/orders/:id rejects an unknown status", async () => {
+      const { db } = await import("../src/db/index.js");
+      (
+        db as unknown as { limit: ReturnType<typeof vi.fn> }
+      ).limit.mockResolvedValueOnce([{ admin: true }]);
+
+      const token = app.jwt.sign({ id: 1, email: "a@test.com", admin: true });
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/orders/5",
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { status: "Хакнуто" },
+      });
+      expect(response.statusCode).toBe(400);
+    });
+  });
 });

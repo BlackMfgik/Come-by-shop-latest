@@ -17,28 +17,28 @@ export default function OtpInput({
 }: OtpInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Порожня клітинка всередині коду = пробіл, щоб цифри не зсувались
+  const cells = () => Array.from({ length: 6 }, (_, k) => value[k] ?? " ");
+  const emit = (chars: string[]) => onChange(chars.join("").trimEnd());
+
   function handleChange(i: number, v: string) {
     const digit = v.replace(/\D/g, "").slice(-1);
-    // Завжди тримаємо рівно 6 символів; порожні клітинки = "0"-placeholder
-    // але передаємо вверх тільки заповнені цифри як суцільний рядок
-    const chars = Array.from({ length: 6 }, (_, k) => value[k] ?? "");
-    chars[i] = digit;
-    // Будуємо значення: беремо всі до останньої заповненої цифри
-    const joined = chars.join("");
-    const trimmed = joined.replace(/\s+/g, "").slice(0, 6); // видаляємо випадкові пробіли
-    onChange(joined.trimEnd()); // передаємо без хвостових порожніх
+    const chars = cells();
+    chars[i] = digit || " ";
+    emit(chars);
     if (digit && i < 5) refs.current[i + 1]?.focus();
   }
 
   function handleKeyDown(i: number, e: React.KeyboardEvent) {
     if (e.key === "Backspace") {
-      const chars = Array.from({ length: 6 }, (_, k) => value[k] ?? "");
-      if (chars[i]) {
-        chars[i] = "";
-        onChange(chars.join("").trimEnd());
+      e.preventDefault();
+      const chars = cells();
+      if (chars[i] !== " ") {
+        chars[i] = " ";
+        emit(chars);
       } else if (i > 0) {
-        chars[i - 1] = "";
-        onChange(chars.join("").trimEnd());
+        chars[i - 1] = " ";
+        emit(chars);
         refs.current[i - 1]?.focus();
       }
     } else if (e.key === "ArrowLeft" && i > 0) {
@@ -94,15 +94,17 @@ export default function OtpInput({
             }}
             type="text"
             inputMode="numeric"
+            autoComplete={i === 0 ? "one-time-code" : "off"}
+            aria-label={`Цифра ${i + 1}`}
             maxLength={1}
-            value={value[i] ?? ""}
+            value={(value[i] ?? "").trim()}
             disabled={disabled}
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}
             className={[
               "otp-box",
-              value[i] && !hasError ? "filled" : "",
+              value[i]?.trim() && !hasError ? "filled" : "",
               hasError ? "error" : "",
             ]
               .filter(Boolean)

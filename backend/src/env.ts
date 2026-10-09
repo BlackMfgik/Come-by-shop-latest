@@ -32,6 +32,10 @@ export const env = createEnv({
 
     GOOGLE_CLIENT_ID: z.string().min(1),
 
+    // Публічна адреса бекенду для WayForPay serviceUrl (напр. https://api.come-by-shop.com)
+    // Якщо не задано — визначається з заголовків запиту
+    PUBLIC_API_URL: z.string().url().optional(),
+
     // Тільки для розробки: фіксований OTP-код, SMS не надсилається
     // Приклад: DEV_OTP=000000
     DEV_OTP: z.string().length(6).optional(),

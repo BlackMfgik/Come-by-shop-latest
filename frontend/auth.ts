@@ -84,22 +84,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account?.provider === "google") {
         /**
          * 🔌 ENDPOINT: POST /api/auth/google
-         * Request:  { email, name?, image? }  (дані від Google)
+         * Request:  { idToken }  — підписаний Google ID-токен
          * Response: { token, user: UserInfo }
-         * Логіка:   якщо email існує → логін, інакше → авто-реєстрація
-         * ⚠️ НЕ передавати Google idToken — тільки профільні дані
+         * Бекенд перевіряє підпис токена і бере email лише з нього
+         * (GOOGLE_CLIENT_ID на фронтенді та бекенді має збігатися)
          */
+        if (!account.id_token) return false;
         try {
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/auth/google`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email: user.email,
-                name: user.name,
-                image: user.image,
-              }),
+              body: JSON.stringify({ idToken: account.id_token }),
             },
           );
           if (!res.ok) return false;

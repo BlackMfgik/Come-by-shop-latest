@@ -4,9 +4,13 @@ import { env } from "../env.js";
 
 const TURBOSMS_API = "https://api.turbosms.ua/message/send";
 
+// DEV_OTP випадково заданий на продакшені = вхід з кодом 000000 для будь-кого
+const DEV_OTP =
+  process.env.NODE_ENV === "production" ? undefined : env.DEV_OTP;
+
 export async function sendSms(phone: string, text: string): Promise<void> {
   // DEV режим: не надсилаємо реальний SMS, просто логуємо
-  if (env.DEV_OTP) {
+  if (DEV_OTP) {
     console.log(`[DEV SMS] → ${phone}: ${text}`);
     return;
   }
@@ -36,15 +40,11 @@ export async function sendSms(phone: string, text: string): Promise<void> {
 
 export function generateOtp(): string {
   // DEV режим: завжди повертаємо фіксований код
-  if (env.DEV_OTP) {
-    return env.DEV_OTP;
+  if (DEV_OTP) {
+    return DEV_OTP;
   }
 
-  // Crypto-safe 6-digit OTP
-  const array = new Uint32Array(1);
-  nodeCrypto.getRandomValues(array);
-  const num = (array[0] ?? 0) % 1_000_000;
-  return num.toString().padStart(6, "0");
+  return nodeCrypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
 export function timingSafeCompare(a: string, b: string): boolean {

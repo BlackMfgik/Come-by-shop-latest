@@ -45,7 +45,7 @@ describe("addItem", () => {
   });
 
   test("додає товар в порожній кошик", () => {
-    const { addItem, items } = useCartStore.getState();
+    const { addItem } = useCartStore.getState();
 
     addItem("Піца Маргарита", 250, "/img.jpg", "Смачна", 1);
 

@@ -17,7 +17,7 @@
 | State        | Zustand 5 with persist middleware            |
 | Data / cache | TanStack Query 5                             |
 | Forms        | React Hook Form 7 + Zod 3                    |
-| Auth         | NextAuth v5 beta (`next-auth@5.0.0-beta.31`) |
+| Auth         | NextAuth v5 beta (`next-auth@5.0.0-beta.32`) |
 | Images       | Cloudinary (next-cloudinary + CldImage)      |
 | Icons        | lucide-react                                 |
 | Toasts       | sonner                                       |
@@ -38,7 +38,7 @@
 | Email        | Resend                        |
 | SMS          | TurboSMS                      |
 | Payments     | WayForPay (server-side logic) |
-| Google OAuth | google-auth-library           |
+| Google OAuth | google-auth-library (verifies ID token) |
 | Env          | @t3-oss/env-core              |
 | Tests        | Vitest                        |
 
@@ -201,7 +201,7 @@ Auth header: `Authorization: Bearer <token>`
 | POST   | `/login`                   | —    | Login → `{ token, user }`                            |
 | POST   | `/2fa/send`                | —    | Send 2FA code to email                               |
 | POST   | `/2fa/verify`              | —    | Verify 2FA → `{ token, user }`                       |
-| POST   | `/google`                  | —    | Google OAuth → `{ token, user }`                     |
+| POST   | `/google`                  | —    | `{ idToken }` (Google ID token) → `{ token, user }`  |
 | GET    | `/me`                      | ✅   | Current user → `UserInfo`                            |
 | PUT    | `/profile`                 | ✅   | Update name / address                                |
 | PUT    | `/password`                | ✅   | Change password (old + new)                          |
@@ -219,7 +219,7 @@ Auth header: `Authorization: Bearer <token>`
 
 | Method | Path          | Auth     | Description                           |
 | ------ | ------------- | -------- | ------------------------------------- |
-| GET    | `/`           | —        | All visible products                  |
+| GET    | `/`           | —        | Visible products (admin token → all)  |
 | GET    | `/:id`        | —        | Single product                        |
 | GET    | `/categories` | —        | List of categories                    |
 | POST   | `/`           | 🔐 admin | Create product                        |
@@ -229,10 +229,12 @@ Auth header: `Authorization: Bearer <token>`
 
 ### `/api/orders`
 
-| Method | Path | Auth | Description           |
-| ------ | ---- | ---- | --------------------- |
-| GET    | `/`  | ✅   | Current user's orders |
-| POST   | `/`  | ✅   | Create order          |
+| Method | Path     | Auth     | Description                         |
+| ------ | -------- | -------- | ----------------------------------- |
+| GET    | `/`      | ✅       | Current user's orders               |
+| POST   | `/`      | ✅       | Create order                        |
+| GET    | `/admin` | 🔐 admin | All orders with customer contacts   |
+| PATCH  | `/:id`   | 🔐 admin | Change order status `{ status }`    |
 
 ### `/api/payment`
 
@@ -245,7 +247,7 @@ Auth header: `Authorization: Bearer <token>`
 
 | Method | Path          | Description                |
 | ------ | ------------- | -------------------------- |
-| POST   | `/api/upload` | Upload image to Cloudinary |
+| POST   | `/api/upload` | Upload image to Cloudinary (admin Bearer token required) |
 
 ---
 
@@ -494,6 +496,7 @@ beforeEach(() => {
 ```bash
 cd frontend && npm run test       # watch mode
 cd frontend && npm run test:run   # single run
+cd frontend && npm run lint       # ESLint flat config (eslint.config.mjs)
 
 cd backend && npm run test
 cd backend && npm run test:watch
@@ -550,9 +553,10 @@ WAYFORPAY_SECRET_KEY=
 WAYFORPAY_DOMAIN=come-by-shop.com
 EMAIL_PROVIDER_API_KEY=           # Resend API key
 EMAIL_FROM_ADDRESS=noreply@come-by-shop.com
-GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_ID=                 # must equal the frontend GOOGLE_CLIENT_ID
+PUBLIC_API_URL=                   # optional, public backend URL for WayForPay serviceUrl
 PORT=4000
-DEV_OTP=000000                    # DEV ONLY — fixed OTP, no SMS sent
+DEV_OTP=000000                    # DEV ONLY — fixed OTP, no SMS sent (ignored when NODE_ENV=production)
 ```
 
 ### Infrastructure

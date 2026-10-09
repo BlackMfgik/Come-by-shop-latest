@@ -173,6 +173,11 @@ describe("Products routes", () => {
     });
 
     it("returns 400 for invalid price format", async () => {
+      const { db: adminDb } = await import("../src/db/index.js");
+      (
+        adminDb as unknown as { limit: ReturnType<typeof vi.fn> }
+      ).limit.mockResolvedValueOnce([{ admin: true }]);
+
       const token = app.jwt.sign({
         id: 1,
         email: "admin@test.com",
@@ -198,6 +203,11 @@ describe("Products routes", () => {
         .values;
       values.mockClear();
 
+      const { db: adminDb } = await import("../src/db/index.js");
+      (
+        adminDb as unknown as { limit: ReturnType<typeof vi.fn> }
+      ).limit.mockResolvedValueOnce([{ admin: true }]);
+
       const token = app.jwt.sign({
         id: 1,
         email: "admin@test.com",
@@ -221,6 +231,28 @@ describe("Products routes", () => {
       expect(values).toHaveBeenCalledWith(
         expect.objectContaining({ price: "99.50", image: null }),
       );
+    });
+  });
+
+  describe("admin rights are checked in the database", () => {
+    it("returns 403 when the JWT says admin but the DB does not", async () => {
+      const { db } = await import("../src/db/index.js");
+      (
+        db as unknown as { limit: ReturnType<typeof vi.fn> }
+      ).limit.mockResolvedValueOnce([{ admin: false }]);
+
+      const token = app.jwt.sign({
+        id: 1,
+        email: "former-admin@test.com",
+        admin: true,
+      });
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/products",
+        headers: { Authorization: `Bearer ${token}` },
+        payload: { name: "X", price: 10, category: "Кава" },
+      });
+      expect(response.statusCode).toBe(403);
     });
   });
 

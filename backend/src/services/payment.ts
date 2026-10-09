@@ -5,6 +5,7 @@ import { env } from "../env.js";
 const WAYFORPAY_API = "https://api.wayforpay.com/api";
 
 interface WayForPayInitParams {
+  serviceUrl: string;
   orderId: string;
   orderDate: number;
   amount: string;
@@ -26,7 +27,7 @@ interface WayForPayCallbackBody {
   merchantAccount: string;
   orderReference: string;
   merchantSignature: string;
-  amount: string;
+  amount: string | number;
   currency: string;
   authCode?: string;
   email?: string;
@@ -49,6 +50,7 @@ export async function initWayForPayPayment(
   params: WayForPayInitParams,
 ): Promise<string> {
   const {
+    serviceUrl,
     orderId,
     orderDate,
     amount,
@@ -81,8 +83,8 @@ export async function initWayForPayPayment(
     merchantSignature,
     apiVersion: 1,
     language: "UA",
-    serviceUrl: `https://${env.WAYFORPAY_DOMAIN}/api/payment/wayforpay/callback`,
-    returnUrl: `${env.ALLOWED_ORIGIN}/orders`,
+    serviceUrl,
+    returnUrl: `${env.ALLOWED_ORIGIN}/account?tab=orders`,
     orderReference: orderId,
     orderDate,
     amount,
@@ -133,7 +135,7 @@ export function verifyWayForPayCallback(body: WayForPayCallbackBody): boolean {
   const signatureFields = [
     merchantAccount,
     orderReference,
-    amount,
+    String(amount),
     currency,
     authCode ?? "",
     cardPan ?? "",
@@ -146,10 +148,10 @@ export function verifyWayForPayCallback(body: WayForPayCallbackBody): boolean {
 
   if (typeof received !== "string") return false;
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected, "utf8"),
-    Buffer.from(received, "utf8"),
-  );
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(received, "utf8");
+  // timingSafeEqual кидає виняток на буферах різної довжини
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export function buildWayForPayResponse(

@@ -23,7 +23,8 @@ const callbackSchema = z.object({
   merchantAccount: z.string(),
   orderReference: z.string(),
   merchantSignature: z.string(),
-  amount: z.string(),
+  // WayForPay надсилає суму числом
+  amount: z.union([z.number(), z.string()]),
   currency: z.string(),
   transactionStatus: z.string().optional(),
   cardPan: z.string().optional(),
@@ -43,6 +44,32 @@ interface JwtPayload {
 // ─── Route plugin ─────────────────────────────────────────────────────────────
 
 export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
+  // WayForPay шле JSON з Content-Type application/x-www-form-urlencoded
+  fastify.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => {
+      const text = String(body);
+      try {
+        done(null, JSON.parse(text));
+        return;
+      } catch {
+        // Інколи JSON приходить як єдиний ключ form-urlencoded тіла
+      }
+      try {
+        const params = new URLSearchParams(text);
+        const keys = [...params.keys()];
+        if (keys.length === 1 && keys[0]!.trim().startsWith("{")) {
+          done(null, JSON.parse(keys[0]!));
+          return;
+        }
+        done(null, Object.fromEntries(params));
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   // ── POST /api/payment/wayforpay/init ──────────────────────────────────────
   fastify.post(
     "/wayforpay/init",
@@ -104,9 +131,14 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
       const productCounts = items.map((i) => i.quantity);
       const productPrices = items.map((i) => parseFloat(i.price).toFixed(2));
 
+      const apiBase = (
+        env.PUBLIC_API_URL ?? `${request.protocol}://${request.host}`
+      ).replace(/\/$/, "");
+
       let invoiceUrl: string;
       try {
         invoiceUrl = await initWayForPayPayment({
+          serviceUrl: `${apiBase}/api/payment/wayforpay/callback`,
           orderId: orderReference,
           orderDate,
           amount: parseFloat(order.total).toFixed(2),
@@ -161,22 +193,36 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(response);
     }
 
-    // Parse order ID from reference
-    const orderIdStr = callbackData.orderReference.replace("ORDER-", "");
-    const orderId = parseInt(orderIdStr, 10);
+    if (callbackData.merchantAccount !== env.WAYFORPAY_MERCHANT_ACCOUNT) {
+      return reply.code(400).send({ error: "Невірний мерчант" });
+    }
 
-    if (isNaN(orderId)) {
+    const match = /^ORDER-(\d+)$/.exec(callbackData.orderReference);
+    const orderId = match ? Number(match[1]) : NaN;
+
+    if (!Number.isSafeInteger(orderId)) {
       return reply.code(400).send({ error: "Невірний orderReference" });
     }
 
     const [order] = await db
-      .select({ userId: orders.userId })
+      .select({ userId: orders.userId, total: orders.total })
       .from(orders)
       .where(eq(orders.id, orderId))
       .limit(1);
 
     if (!order) {
       return reply.code(404).send({ error: "Замовлення не знайдено" });
+    }
+
+    // Сума оплати має збігатися з сумою замовлення в БД
+    if (
+      Number(callbackData.amount).toFixed(2) !== Number(order.total).toFixed(2)
+    ) {
+      fastify.log.warn(
+        { orderReference: callbackData.orderReference },
+        "WayForPay callback: amount mismatch",
+      );
+      return reply.code(400).send({ error: "Невірна сума" });
     }
 
     // Save masked card info — never log full PAN

@@ -77,17 +77,16 @@ interface Props {
 // ── Таймер повторного відправлення ────────────────────────────────────────────
 
 function ResendTimer({
-  timerKey,
   seconds,
   onResend,
   loading,
 }: {
-  timerKey: number;
   seconds: number;
   onResend: () => void;
   loading: boolean;
 }) {
-  const target = Date.now() + seconds * 1000;
+  // Фіксуємо момент завершення один раз — інакше таймер скидається при кожному рендері
+  const [target] = useState(() => Date.now() + seconds * 1000);
 
   function renderer({ seconds: s, completed }: CountdownRenderProps) {
     if (completed) {
@@ -121,7 +120,7 @@ function ResendTimer({
 
   return (
     <div style={{ textAlign: "center", marginTop: 14 }}>
-      <Countdown key={timerKey} date={target} renderer={renderer} />
+      <Countdown date={target} renderer={renderer} />
     </div>
   );
 }
@@ -415,7 +414,7 @@ export default function ChangePasswordModal({
           )}
 
           <ResendTimer
-            timerKey={timerKey}
+            key={timerKey}
             seconds={RESEND_COOLDOWN}
             loading={otpForm.formState.isSubmitting}
             onResend={handleResend}
@@ -435,7 +434,7 @@ export default function ChangePasswordModal({
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={code.length < 6 || otpForm.formState.isSubmitting}
+              disabled={!/^\d{6}$/.test(code ?? "") || otpForm.formState.isSubmitting}
             >
               {otpForm.formState.isSubmitting ? "Перевіряємо…" : "Підтвердити"}
             </button>

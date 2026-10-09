@@ -365,7 +365,7 @@ export default function RegistrationPage() {
           <form onSubmit={handleSubmit} className="register-form">
             {/* Ім'я */}
             <div className="register-field">
-              <label htmlFor="regName">Ім'я</label>
+              <label htmlFor="regName">Ім&apos;я</label>
               <div className="register-input-wrap">
                 <User size={16} className="register-icon" />
                 <input

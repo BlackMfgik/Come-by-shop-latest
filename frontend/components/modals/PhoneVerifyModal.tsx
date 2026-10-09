@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Countdown, { type CountdownRenderProps } from "react-countdown";
-import { Phone, ShieldCheck, CheckCircle2, RefreshCw } from "lucide-react";
+import { Phone, ShieldCheck, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import BaseModal from "./BaseModal";
@@ -82,7 +82,8 @@ function ResendTimer({
   onResend: () => void;
   loading: boolean;
 }) {
-  const target = Date.now() + seconds * 1000;
+  // Фіксуємо момент завершення один раз — інакше таймер скидається при кожному рендері
+  const [target] = useState(() => Date.now() + seconds * 1000);
 
   function renderer({ seconds: s, completed }: CountdownRenderProps) {
     if (completed) {
@@ -116,7 +117,7 @@ function ResendTimer({
 
   return (
     <div style={{ textAlign: "center", marginTop: 14 }}>
-      <Countdown key={target} date={target} renderer={renderer} />
+      <Countdown date={target} renderer={renderer} />
     </div>
   );
 }
@@ -190,7 +191,7 @@ export default function PhoneVerifyModal({
 
   // Авто-підтвердження при 6 цифрах
   useEffect(() => {
-    if (otpValue.length === 6) {
+    if (/^\d{6}$/.test(otpValue ?? "")) {
       otpHandleSubmit(handleVerify)();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

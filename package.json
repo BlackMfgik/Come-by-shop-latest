@@ -18,12 +18,7 @@
   "devDependencies": {
     "concurrently": "^9.0.0"
   },
-  "dependencies": {
-    "@fastify/jwt": "^10.0.0",
-    "resend": "^6.12.3",
-    "zod": "^3.25.76"
-  },
-  "overrides": {
-    "node-fetch": "^3.3.2"
+  "engines": {
+    "node": ">=20.9"
   }
 }

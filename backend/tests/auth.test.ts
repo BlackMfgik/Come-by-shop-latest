@@ -52,15 +52,12 @@ vi.mock("../src/services/email.js", () => ({
   sendEmailVerificationEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { verifyIdToken } = vi.hoisted(() => ({ verifyIdToken: vi.fn() }));
+
 vi.mock("google-auth-library", () => ({
-  OAuth2Client: vi.fn().mockImplementation(() => ({
-    verifyIdToken: vi.fn().mockResolvedValue({
-      getPayload: () => ({
-        email: "google@example.com",
-        name: "Google User",
-      }),
-    }),
-  })),
+  OAuth2Client: class {
+    verifyIdToken = verifyIdToken;
+  },
 }));
 
 import Fastify from "fastify";
@@ -242,6 +239,83 @@ describe("Auth routes", () => {
         payload: {},
       });
       expect(response.statusCode).toBe(400);
+    });
+
+    it("rejects a forged request with only an email (no Google token)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/google",
+        payload: { email: "admin@example.com" },
+      });
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("returns 401 when Google token verification fails", async () => {
+      verifyIdToken.mockRejectedValueOnce(new Error("bad token"));
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/google",
+        payload: { idToken: "forged" },
+      });
+      expect(response.statusCode).toBe(401);
+    });
+
+    it("returns 401 when Google email is not verified", async () => {
+      verifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({ email: "x@example.com", email_verified: false }),
+      });
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/google",
+        payload: { idToken: "token" },
+      });
+      expect(response.statusCode).toBe(401);
+    });
+
+    it("logs in with the email from the verified Google token", async () => {
+      verifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({
+          email: "Google@Example.com",
+          email_verified: true,
+          name: "Google User",
+        }),
+      });
+      const { db } = await import("../src/db/index.js");
+      const mocked = db as unknown as {
+        limit: ReturnType<typeof vi.fn>;
+      };
+      mocked.limit.mockResolvedValueOnce([
+        {
+          id: 7,
+          email: "google@example.com",
+          name: "Google User",
+          passwordHash: null,
+          phone: null,
+          phoneVerified: false,
+          address: null,
+          cardMaskedPan: null,
+          cardType: null,
+          admin: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/google",
+        payload: { idToken: "valid" },
+      });
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        token: string;
+        user: { email: string };
+      };
+      expect(body.user.email).toBe("google@example.com");
+      expect(verifyIdToken).toHaveBeenCalledWith({
+        idToken: "valid",
+        audience: "test_google_client_id",
+      });
     });
   });
 });

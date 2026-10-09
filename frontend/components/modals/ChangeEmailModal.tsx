@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +34,43 @@ type CodeForm = z.infer<typeof codeSchema>;
 interface Props {
   token: string;
   onClose: () => void;
+}
+
+function ResendTimer({ onResend }: { onResend: () => void }) {
+  // Фіксуємо момент завершення один раз — інакше таймер скидається при кожному рендері
+  const [target] = useState(() => Date.now() + 60_000);
+  function renderer({ seconds: s, completed }: CountdownRenderProps) {
+    if (completed) {
+      return (
+        <button
+          type="button"
+          onClick={onResend}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--accent)",
+            cursor: "pointer",
+            fontSize: "0.9rem",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <RefreshCw size={13} /> Надіслати повторно
+        </button>
+      );
+    }
+    return (
+      <span style={{ color: "var(--text-3, #888)", fontSize: "0.9rem" }}>
+        Повторно через {s}с
+      </span>
+    );
+  }
+  return (
+    <div style={{ textAlign: "center", marginTop: 12 }}>
+      <Countdown date={target} renderer={renderer} />
+    </div>
+  );
 }
 
 export default function ChangeEmailModal({ token, onClose }: Props) {
@@ -80,44 +118,6 @@ export default function ChangeEmailModal({ token, onClose }: Props) {
       });
       codeForm.setValue("code", "");
     }
-  }
-
-  function ResendTimer() {
-    const target = Date.now() + 60_000;
-    function renderer({ seconds: s, completed }: CountdownRenderProps) {
-      if (completed) {
-        return (
-          <button
-            type="button"
-            onClick={() => {
-              emailForm.reset();
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--accent)",
-              cursor: "pointer",
-              fontSize: "0.9rem",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <RefreshCw size={13} /> Надіслати повторно
-          </button>
-        );
-      }
-      return (
-        <span style={{ color: "var(--text-3, #888)", fontSize: "0.9rem" }}>
-          Повторно через {s}с
-        </span>
-      );
-    }
-    return (
-      <div style={{ textAlign: "center", marginTop: 12 }}>
-        <Countdown date={target} renderer={renderer} />
-      </div>
-    );
   }
 
   return (
@@ -196,7 +196,7 @@ export default function ChangeEmailModal({ token, onClose }: Props) {
               {codeForm.formState.errors.code.message}
             </p>
           )}
-          <ResendTimer />
+          <ResendTimer onResend={() => emailForm.reset()} />
           <div className="modal-buttons" style={{ marginTop: 16 }}>
             <button
               type="button"
@@ -211,7 +211,7 @@ export default function ChangeEmailModal({ token, onClose }: Props) {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={code.length < 6 || codeForm.formState.isSubmitting}
+              disabled={!/^\d{6}$/.test(code ?? "") || codeForm.formState.isSubmitting}
             >
               {codeForm.formState.isSubmitting ? "Перевіряємо…" : "Підтвердити"}
             </button>

@@ -15,6 +15,8 @@ import { paymentRoutes } from "./routes/payment.js";
 const isProduction = process.env.NODE_ENV === "production";
 
 const app = Fastify({
+  // Railway/Vercel стоять за проксі: без цього rate-limit рахує всіх юзерів як одну IP
+  trustProxy: true,
   logger: isProduction
     ? true
     : {
