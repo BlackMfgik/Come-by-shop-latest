@@ -1,36 +1,37 @@
 @import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap");
 
 /*
- * Come by — «ринкова крамниця»: теплий еспресо-фон замість чистого чорного,
+ * Come by — «ринкова крамниця»: нейтральний графітовий фон замість чистого чорного,
  * базиліковий зелений для дій і абрикосовий для цін (дві харчові ноти замість
  * одного неонового акценту). Syne — заголовки й ціни, DM Sans — текст.
  */
 :root,
 [data-theme="dark"] {
-  --bg: #15120f;
-  --bg-2: #1b1714;
-  --surface: #1f1a16;
-  --surface-2: #29231e;
-  --surface-3: #342d26;
-  --border: rgba(242, 235, 225, 0.08);
-  --border-2: rgba(242, 235, 225, 0.15);
+  --bg: #121412;
+  --bg-2: #161816;
+  --surface: #1b1e1b;
+  --surface-2: #232723;
+  --surface-3: #2d312d;
+  --border: rgba(236, 240, 233, 0.08);
+  --border-2: rgba(236, 240, 233, 0.15);
   --accent: #93cf6b;
   --accent-dim: #74b04d;
-  --accent-ink: #15120f;
+  --accent-ink: #121412;
   --accent-glow: rgba(147, 207, 107, 0.16);
   --accent-glow-strong: rgba(147, 207, 107, 0.3);
   --price: #f3a35f;
-  --text: #f3ece2;
-  --text-2: #b4a999;
-  --text-3: #7f7466;
+  --text: #eef1ea;
+  --text-2: #a6aba2;
+  --text-3: #71766e;
   --red: #ff6b5b;
   --red-glow: rgba(255, 107, 91, 0.15);
-  --header-bg: rgba(21, 18, 15, 0.86);
-  --nav-mobile-bg: rgba(21, 18, 15, 0.97);
-  --icon-filter: invert(1) brightness(0.7) sepia(0.15);
+  --header-bg: rgba(18, 20, 18, 0.86);
+  --nav-mobile-bg: rgba(18, 20, 18, 0.97);
+  --icon-filter: invert(1) brightness(0.7);
   --icon-active-filter: invert(1) brightness(1);
-  --logo-filter: none;
-  --cart-shadow: 0 0 0 1px rgba(242, 235, 225, 0.05);
+  /* Перефарбовує растровий логотип у колір --accent (фільтри в layout.tsx) */
+  --logo-filter: url(#logo-tint-dark);
+  --cart-shadow: 0 0 0 1px rgba(236, 240, 233, 0.05);
 }
 
 [data-theme="light"] {
@@ -56,7 +57,7 @@
   --nav-mobile-bg: rgba(243, 242, 236, 0.98);
   --icon-filter: invert(0) brightness(0.45);
   --icon-active-filter: invert(0) brightness(0);
-  --logo-filter: none;
+  --logo-filter: url(#logo-tint-light);
   --cart-shadow: 0 0 0 1px rgba(40, 34, 24, 0.06);
 }
 
@@ -514,7 +515,7 @@ header > .burger img {
   padding: calc(128px * var(--scale)) calc(24px * var(--scale))
     calc(24px * var(--scale));
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: clamp(24px, 4vw, 64px);
 }
@@ -591,9 +592,11 @@ header > .burger img {
 }
 .hero-photo {
   margin: 0;
-  aspect-ratio: 5 / 4;
-  max-width: 100%;
-  border-radius: 28px 28px 28px 120px;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  max-width: 680px;
+  justify-self: end;
+  border-radius: 32px 32px 32px 160px;
   overflow: hidden;
   background: var(--surface-2);
 }
@@ -2431,7 +2434,9 @@ input::placeholder {
     font-size: clamp(2rem, 9vw, 2.6rem);
   }
   .hero-photo {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 4 / 3;
+    max-width: none;
+    justify-self: stretch;
     border-radius: 20px 20px 20px 64px;
   }
   .hero-cta {

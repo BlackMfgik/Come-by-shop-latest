@@ -70,10 +70,10 @@ export default async function HomePage() {
           </div>
           <figure className="hero-photo">
             <img
-              src={cldUrl(STATIC_IMAGES.hero, { w: 960 })}
+              src={cldUrl(STATIC_IMAGES.hero, { w: 1200, angle: -90 })}
               alt="Свіжі фрукти й овочі"
-              width={960}
-              height={768}
+              width={1200}
+              height={1200}
               fetchPriority="high"
             />
           </figure>

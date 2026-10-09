@@ -68,6 +68,25 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
+        {/* Фільтри перефарбовують зелений растровий логотип у --accent кожної теми */}
+        <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+          <filter id="logo-tint-dark" colorInterpolationFilters="sRGB">
+            <feColorMatrix type="saturate" values="0" />
+            <feComponentTransfer>
+              <feFuncR type="table" tableValues="0 0.115 0.231 0.346 0.461 0.576 0.718 0.859 1" />
+              <feFuncG type="table" tableValues="0 0.162 0.325 0.487 0.649 0.812 0.875 0.937 1" />
+              <feFuncB type="table" tableValues="0 0.084 0.168 0.252 0.336 0.42 0.613 0.807 1" />
+            </feComponentTransfer>
+          </filter>
+          <filter id="logo-tint-light" colorInterpolationFilters="sRGB">
+            <feColorMatrix type="saturate" values="0" />
+            <feComponentTransfer>
+              <feFuncR type="table" tableValues="0 0.048 0.096 0.144 0.191 0.239 0.493 0.746 1" />
+              <feFuncG type="table" tableValues="0 0.096 0.191 0.287 0.383 0.478 0.652 0.826 1" />
+              <feFuncB type="table" tableValues="0 0.03 0.06 0.089 0.119 0.149 0.433 0.716 1" />
+            </feComponentTransfer>
+          </filter>
+        </svg>
         <Providers>{children}</Providers>
         {/* WayForPay widget script — lazyOnload щоб не блокувати рендер */}
         <Script
