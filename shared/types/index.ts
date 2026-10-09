@@ -62,28 +62,17 @@ export interface Order {
 /**
  * Відповідь від /api/payment/wayforpay/init
  *
- * mock: true  → бекенд ще не підключений, фронтенд показує тестову форму
- * wayforpay   → бекенд готовий, фронтенд робить POST на WayForPay
+ * mock: true → локальна розробка без WayForPay (тестова форма картки)
+ * verify     → підписана форма WayForPay Card Verify
  */
 export type WayForPayInitResult =
+  // Тестовий режим локальної розробки (бекенд з DEV_OTP)
   | { mock: true }
   | {
       mock?: false;
-      wayforpay: {
-        merchantAccount: string;
-        merchantDomainName: string;
-        authorizationCode: string; // HMAC-MD5 підпис — формується ТІЛЬКИ на бекенді
-        orderReference: string;
-        orderDate: number;
-        amount: string;
-        currency: string;
-        productName: string[];
-        productCount: number[];
-        productPrice: string[];
-        clientFirstName?: string;
-        clientEmail?: string;
-        serviceUrl: string; // URL webhook-у (бекенд)
-        returnUrl: string; // куди повернути юзера після WayForPay
-        paymentSystems: string; // "card"
+      // Підписані на бекенді поля форми Card Verify — браузер POST-ить їх на url
+      verify: {
+        url: string;
+        fields: Record<string, string | number>;
       };
     };

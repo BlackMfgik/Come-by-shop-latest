@@ -3,9 +3,11 @@ import crypto from "node:crypto";
 import { env } from "../env.js";
 
 const WAYFORPAY_API = "https://api.wayforpay.com/api";
+const WAYFORPAY_VERIFY_URL = "https://secure.wayforpay.com/verify";
 
 interface WayForPayInitParams {
   serviceUrl: string;
+  returnUrl: string;
   orderId: string;
   orderDate: number;
   amount: string;
@@ -51,6 +53,7 @@ export async function initWayForPayPayment(
 ): Promise<string> {
   const {
     serviceUrl,
+    returnUrl,
     orderId,
     orderDate,
     amount,
@@ -84,7 +87,7 @@ export async function initWayForPayPayment(
     apiVersion: 1,
     language: "UA",
     serviceUrl,
-    returnUrl: `${env.ALLOWED_ORIGIN}/account?tab=orders`,
+    returnUrl,
     orderReference: orderId,
     orderDate,
     amount,
@@ -115,6 +118,59 @@ export async function initWayForPayPayment(
   }
 
   return data.invoiceUrl;
+}
+
+interface WayForPayVerifyParams {
+  orderReference: string;
+  serviceUrl: string;
+  returnUrl: string;
+  clientEmail: string;
+  clientPhone?: string | undefined;
+}
+
+export interface WayForPayVerifyForm {
+  url: string;
+  fields: Record<string, string | number>;
+}
+
+/**
+ * Card Verify: браузер юзера POST-ить ці поля на secure.wayforpay.com/verify,
+ * WayForPay перевіряє картку (без списання) і шле callback на serviceUrl
+ * з cardPan / cardType. Підпис: merchantAccount;merchantDomainName;orderReference;amount;currency
+ */
+export function buildWayForPayVerifyForm(
+  params: WayForPayVerifyParams,
+): WayForPayVerifyForm {
+  const amount = "0";
+  const currency = "UAH";
+
+  const merchantSignature = buildSignature([
+    env.WAYFORPAY_MERCHANT_ACCOUNT,
+    env.WAYFORPAY_DOMAIN,
+    params.orderReference,
+    amount,
+    currency,
+  ]);
+
+  return {
+    url: WAYFORPAY_VERIFY_URL,
+    fields: {
+      merchantAccount: env.WAYFORPAY_MERCHANT_ACCOUNT,
+      merchantDomainName: env.WAYFORPAY_DOMAIN,
+      merchantAuthType: "SimpleSignature",
+      merchantSignature,
+      orderReference: params.orderReference,
+      amount,
+      currency,
+      paymentSystem: "lookupCard",
+      apiVersion: 1,
+      language: "UA",
+      serviceUrl: params.serviceUrl,
+      returnUrl: params.returnUrl,
+      clientEmail: params.clientEmail,
+      ...(params.clientPhone ? { clientPhone: params.clientPhone } : {}),
+    },
+  };
 }
 
 export function verifyWayForPayCallback(body: WayForPayCallbackBody): boolean {

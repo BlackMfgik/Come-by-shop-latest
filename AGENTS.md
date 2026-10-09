@@ -124,11 +124,12 @@ interface Order {
 
 // WayForPay init response — two possible shapes
 type WayForPayInitResult =
-  | { mock: true }
-  | { mock?: false; wayforpay: { merchantAccount, authorizationCode, ... } }
+  | { mock: true }                                   // local dev only
+  | { mock?: false; verify: { url: string; fields: Record<string, string | number> } }
 ```
 
-> ⚠️ `authorizationCode` (HMAC-MD5 signature) is **backend-only** — never compute on the frontend.
+> ⚠️ `merchantSignature` (HMAC-MD5) is **backend-only** — never compute on the frontend.
+> Card binding = WayForPay Card Verify: the browser POSTs `verify.fields` to `verify.url`, no money is charged.
 
 ---
 
@@ -240,8 +241,10 @@ Auth header: `Authorization: Bearer <token>`
 
 | Method | Path                  | Auth | Description                       |
 | ------ | --------------------- | ---- | --------------------------------- |
-| POST   | `/wayforpay/init`     | ✅   | Init WayForPay widget data        |
-| POST   | `/wayforpay/callback` | —    | WayForPay webhook (HMAC-verified) |
+| POST   | `/wayforpay/init`     | ✅   | `{}` → signed Card Verify form `{ verify: { url, fields } }`; `{ orderId }` → invoice `{ url }` |
+| POST   | `/wayforpay/callback` | —    | WayForPay webhook (HMAC-verified): `VERIFY-*` saves masked card, `ORDER-*` marks order paid |
+| GET/POST | `/wayforpay/return` | —    | WayForPay returnUrl → 303 to `/account?card=pending` or `?tab=orders` |
+| POST   | `/dev/card`           | ✅   | DEV ONLY (DEV_OTP set, not production): save a test card mask |
 
 ### Next.js API Routes
 

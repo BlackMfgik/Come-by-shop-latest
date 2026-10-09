@@ -1,11 +1,12 @@
 // src/routes/payment.ts
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { orders, orderItems, users } from "../db/schema.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import {
+  buildWayForPayVerifyForm,
   initWayForPayPayment,
   verifyWayForPayCallback,
   buildWayForPayResponse,
@@ -39,6 +40,27 @@ interface JwtPayload {
   id: number;
   email: string;
   admin: boolean;
+}
+
+// Локальна розробка без WayForPay: тестова форма картки замість справжньої верифікації
+const DEV_MODE = process.env.NODE_ENV !== "production" && !!env.DEV_OTP;
+
+const VERIFY_REF = /^VERIFY-(\d+)-\d+$/;
+const ORDER_REF = /^ORDER-(\d+)$/;
+
+const devCardSchema = z.object({
+  cardNumber: z.string().regex(/^\d{16}$/),
+});
+
+function apiBase(request: FastifyRequest): string {
+  return (
+    env.PUBLIC_API_URL ?? `${request.protocol}://${request.host}`
+  ).replace(/\/$/, "");
+}
+
+function maskPan(pan: string): string {
+  const last4 = pan.replace(/\D/g, "").slice(-4);
+  return `**** **** **** ${last4}`;
 }
 
 // ─── Route plugin ─────────────────────────────────────────────────────────────
@@ -83,9 +105,30 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
       }
       const { orderId, currency } = result.data;
 
-      // Якщо orderId не передано — картка ще не прив'язана до замовлення, повертаємо mock
+      // Без orderId — прив'язка картки через WayForPay Card Verify
       if (!orderId) {
-        return reply.send({ mock: true });
+        if (DEV_MODE) return reply.send({ mock: true });
+
+        const [user] = await db
+          .select({ email: users.email, phone: users.phone })
+          .from(users)
+          .where(eq(users.id, payload.id))
+          .limit(1);
+
+        if (!user) {
+          return reply.code(404).send({ error: "Користувача не знайдено" });
+        }
+
+        const base = apiBase(request);
+        const verify = buildWayForPayVerifyForm({
+          orderReference: `VERIFY-${payload.id}-${Date.now()}`,
+          serviceUrl: `${base}/api/payment/wayforpay/callback`,
+          returnUrl: `${base}/api/payment/wayforpay/return?to=card`,
+          clientEmail: user.email,
+          clientPhone: user.phone ?? undefined,
+        });
+
+        return reply.send({ verify });
       }
 
       // Verify order belongs to this user
@@ -131,14 +174,13 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
       const productCounts = items.map((i) => i.quantity);
       const productPrices = items.map((i) => parseFloat(i.price).toFixed(2));
 
-      const apiBase = (
-        env.PUBLIC_API_URL ?? `${request.protocol}://${request.host}`
-      ).replace(/\/$/, "");
+      const base = apiBase(request);
 
       let invoiceUrl: string;
       try {
         invoiceUrl = await initWayForPayPayment({
-          serviceUrl: `${apiBase}/api/payment/wayforpay/callback`,
+          serviceUrl: `${base}/api/payment/wayforpay/callback`,
+          returnUrl: `${base}/api/payment/wayforpay/return?to=orders`,
           orderId: orderReference,
           orderDate,
           amount: parseFloat(order.total).toFixed(2),
@@ -197,7 +239,31 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "Невірний мерчант" });
     }
 
-    const match = /^ORDER-(\d+)$/.exec(callbackData.orderReference);
+    // ── Прив'язка картки (Card Verify) ──────────────────────────────────────
+    const verifyMatch = VERIFY_REF.exec(callbackData.orderReference);
+    if (verifyMatch) {
+      const userId = Number(verifyMatch[1]);
+      if (!callbackData.cardPan) {
+        return reply.code(400).send({ error: "Немає даних картки" });
+      }
+
+      // Зберігаємо лише маску — повний номер WayForPay не передає
+      await db
+        .update(users)
+        .set({
+          cardMaskedPan: maskPan(callbackData.cardPan),
+          cardType: callbackData.cardType ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      return reply.send(
+        buildWayForPayResponse(callbackData.orderReference, "accept"),
+      );
+    }
+
+    // ── Оплата замовлення ───────────────────────────────────────────────────
+    const match = ORDER_REF.exec(callbackData.orderReference);
     const orderId = match ? Number(match[1]) : NaN;
 
     if (!Number.isSafeInteger(orderId)) {
@@ -227,12 +293,10 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
 
     // Save masked card info — never log full PAN
     if (callbackData.cardPan) {
-      const maskedPan = callbackData.cardPan;
-
       await db
         .update(users)
         .set({
-          cardMaskedPan: maskedPan,
+          cardMaskedPan: maskPan(callbackData.cardPan),
           cardType: callbackData.cardType ?? null,
           updatedAt: new Date(),
         })
@@ -252,4 +316,49 @@ export async function paymentRoutes(fastify: FastifyInstance): Promise<void> {
 
     return reply.send(response);
   });
+  // ── GET|POST /api/payment/wayforpay/return ────────────────────────────────
+  // WayForPay повертає юзера POST-запитом, тому returnUrl веде сюди, а не на сторінку Next.js
+  fastify.route<{ Querystring: { to?: string } }>({
+    method: ["GET", "POST"],
+    url: "/wayforpay/return",
+    handler: async (request, reply) => {
+      const target =
+        request.query.to === "card"
+          ? "/account?card=pending"
+          : "/account?tab=orders";
+      return reply.redirect(`${env.ALLOWED_ORIGIN}${target}`, 303);
+    },
+  });
+
+  // ── POST /api/payment/dev/card — тільки для локальної розробки ────────────
+  if (DEV_MODE) {
+    fastify.post(
+      "/dev/card",
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const payload = request.user as JwtPayload;
+        const result = devCardSchema.safeParse(request.body);
+        if (!result.success) {
+          return reply.code(400).send({ error: "Невірний номер картки" });
+        }
+        const { cardNumber } = result.data;
+        const cardType = cardNumber.startsWith("4") ? "Visa" : "MasterCard";
+
+        const [user] = await db
+          .update(users)
+          .set({
+            cardMaskedPan: maskPan(cardNumber),
+            cardType,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, payload.id))
+          .returning({ id: users.id });
+
+        if (!user) {
+          return reply.code(404).send({ error: "Користувача не знайдено" });
+        }
+        return reply.send({ ok: true });
+      },
+    );
+  }
 }

@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
   apiUpdateProfile,
+  apiGetMe,
   apiGetMyOrders,
   getFriendlyErrorMessage,
 } from "@/lib/api";
@@ -317,6 +318,44 @@ function AccountPageContent() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as Tab) ?? "profile";
   const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Повернення з WayForPay: callback з карткою може прийти на кілька секунд пізніше
+  const cardPending = searchParams.get("card") === "pending";
+  useEffect(() => {
+    if (!cardPending || !token) return;
+    let cancelled = false;
+    let attempts = 0;
+
+    async function poll() {
+      if (cancelled || !token) return;
+      attempts++;
+      try {
+        const fresh = await apiGetMe(token);
+        if (cancelled) return;
+        if (fresh.card_masked_pan) {
+          saveAuth(token, fresh);
+          toast.success("Картку прив'язано ✓");
+          router.replace("/account");
+          return;
+        }
+      } catch {
+        // повторимо нижче
+      }
+      if (attempts < 6) {
+        setTimeout(poll, 2000);
+      } else {
+        toast.info(
+          "WayForPay ще обробляє картку. Оновіть сторінку за хвилину.",
+        );
+        router.replace("/account");
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [cardPending, token, saveAuth, router]);
 
   async function handleLogout() {
     logout();

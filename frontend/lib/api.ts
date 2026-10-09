@@ -435,21 +435,14 @@ export async function apiVerifyPhoneOtp(
 
 /**
  * 🔌 ENDPOINT: POST /api/payment/wayforpay/init  [AUTH REQUIRED]
+ * Request:  {}  — прив'язка картки (WayForPay Card Verify, без списання)
  * Response: WayForPayInitResult
- *   - { mock: true }  → бекенд ще не підключений (фронтенд показує тест-форму)
- *   - { wayforpay: { ... підписані параметри ... } }  → продакшн
+ *   - { verify: { url, fields } } → браузер POST-ить підписані поля на сторінку WayForPay
+ *   - { mock: true }              → локальна розробка (бекенд з DEV_OTP), тестова форма
  *
- * ⚙️ Що має зробити бекенд:
- * 1. Згенерувати унікальний orderReference (UUID або timestamp+userId)
- * 2. Сформувати об'єкт запиту WayForPay (сума: 1 UAH для збереження картки)
- * 3. Підписати HMAC-MD5 з WAYFORPAY_SECRET_KEY (ТІЛЬКИ на бекенді!)
- * 4. Повернути підписані поля для JS-форми
- * ENV: WAYFORPAY_MERCHANT_ACCOUNT, WAYFORPAY_SECRET_KEY, WAYFORPAY_DOMAIN
- *
- * 🔌 WEBHOOK: POST /api/payment/wayforpay/callback  (від WayForPay → бекенд)
- * Після успіху WayForPay надішле callback з recToken + card_masked_pan + card_type
- * Бекенд має оновити: UPDATE users SET card_masked_pan, card_type WHERE id = userId
- * ⚠️ НЕ приймати card_masked_pan від фронтенду — тільки з верифікованого callback!
+ * Далі WayForPay шле callback на бекенд (POST /api/payment/wayforpay/callback),
+ * бекенд зберігає маску картки, а юзера повертає на /account?card=pending.
+ * ⚠️ Підпис формується ТІЛЬКИ на бекенді.
  */
 export async function apiInitWayForPay(
   token: string,
@@ -656,6 +649,23 @@ export async function apiUploadImage(
   });
   const data = await handleResponse<{ url: string }>(res);
   return data.url;
+}
+
+/**
+ * 🔌 ENDPOINT: POST /api/payment/dev/card  [AUTH REQUIRED, тільки локальна розробка]
+ * Request:  { cardNumber: string }  — тестовий номер, бекенд зберігає лише маску
+ * Доступний лише коли бекенд запущено з DEV_OTP і NODE_ENV != production
+ */
+export async function apiDevBindCard(
+  cardNumber: string,
+  token: string,
+): Promise<void> {
+  const res = await apiFetch(`${BASE}/api/payment/dev/card`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ cardNumber }),
+  });
+  if (!res.ok) await throwResponseError(res);
 }
 
 // ─── Адмін: замовлення ────────────────────────────────────────────────────────

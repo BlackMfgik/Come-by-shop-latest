@@ -11,8 +11,30 @@ import {
   RefreshCw,
   Wifi,
 } from "lucide-react";
-import { apiInitWayForPay } from "@/lib/api";
+import {
+  apiDevBindCard,
+  apiGetMe,
+  apiInitWayForPay,
+  getFriendlyErrorMessage,
+} from "@/lib/api";
 import type { UserInfo, WayForPayInitResult } from "@/types";
+
+// Повноцінна навігація POST-формою на сторінку WayForPay (Card Verify)
+function submitToWayForPay(url: string, fields: Record<string, string | number>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = url;
+  form.acceptCharset = "utf-8";
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = String(value);
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
 
 function useCardNumberMask() {
   const [raw, setRaw] = useState("");
@@ -302,6 +324,8 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
   const [wpData, setWpData] = useState<WayForPayInitResult | null>(null);
   const [netError, setNetError] = useState("");
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const initialized = useRef(false);
 
   const cardNumber = useCardNumberMask();
@@ -327,12 +351,11 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
     doInit();
   }, []); // eslint-disable-line
 
-  useEffect(() => {
-    if (step !== "wayforpay" || !wpData || wpData.mock) return;
-    if (typeof window === "undefined" || !window.Wayforpay) return;
-    const wp = new window.Wayforpay();
-    wp.run({ ...wpData.wayforpay, straightWidget: true });
-  }, [step, wpData]);
+  function handleGoToWayForPay() {
+    if (!wpData || wpData.mock) return;
+    setRedirecting(true);
+    submitToWayForPay(wpData.verify.url, wpData.verify.fields);
+  }
 
   function handleRetry() {
     setStep("loading");
@@ -341,15 +364,24 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
     doInit();
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (cardNumber.raw.length < 16)
       return setFormError("Введіть повний номер картки");
     const ee = expiry.validate();
     if (ee) return setFormError(ee);
     if (cvv.length < 3) return setFormError("Введіть CVV");
     setFormError("");
-    setStep("done");
-    setTimeout(() => onSuccess({} as UserInfo), 1800);
+    setSaving(true);
+    try {
+      await apiDevBindCard(cardNumber.raw, token);
+      const fresh = await apiGetMe(token);
+      setStep("done");
+      setTimeout(() => onSuccess(fresh), 1800);
+    } catch (err: unknown) {
+      setFormError(getFriendlyErrorMessage(err, "Не вдалося зберегти картку"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const lbl: React.CSSProperties = {
@@ -604,8 +636,9 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
                 className="btn btn-primary"
                 style={{ flex: 1 }}
                 onClick={handleSave}
+                disabled={saving}
               >
-                Зберегти картку
+                {saving ? "Збереження…" : "Зберегти картку (тест)"}
               </button>
             </div>
           </>
@@ -623,10 +656,39 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
             >
               <ShieldCheck size={20} color="var(--accent,#009956)" />
               <h3 id="pm-title" style={{ margin: 0, fontSize: "1.08rem" }}>
-                Безпечна оплата
+                Прив&apos;язка картки
               </h3>
             </div>
-            <div id="wayforpay-widget-container" style={{ minHeight: 200 }} />
+            <p
+              style={{
+                color: "var(--text-2)",
+                fontSize: "0.9rem",
+                lineHeight: 1.5,
+                margin: "0 0 18px",
+              }}
+            >
+              Дані картки вводяться на захищеній сторінці WayForPay — ми їх не
+              бачимо і не зберігаємо. Кошти не списуються: WayForPay лише
+              перевіряє картку, після чого вас буде повернено назад.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                className="btn btn-secondary"
+                style={{ flexShrink: 0, padding: "0 16px" }}
+                onClick={onClose}
+                disabled={redirecting}
+              >
+                Скасувати
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={handleGoToWayForPay}
+                disabled={redirecting}
+              >
+                {redirecting ? "Переходимо…" : "Перейти до WayForPay"}
+              </button>
+            </div>
           </>
         )}
 
