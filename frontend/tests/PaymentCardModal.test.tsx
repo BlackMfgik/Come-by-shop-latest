@@ -30,12 +30,9 @@ describe("PaymentCardModal — WayForPay Card Verify", () => {
       },
     });
 
-    let submitted: HTMLFormElement | null = null;
-    vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(
-      function (this: HTMLFormElement) {
-        submitted = this;
-      },
-    );
+    const submit = vi
+      .spyOn(HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => {});
 
     render(
       <PaymentCardModal token="t" onSuccess={vi.fn()} onClose={vi.fn()} />,
@@ -43,8 +40,8 @@ describe("PaymentCardModal — WayForPay Card Verify", () => {
 
     fireEvent.click(await screen.findByText("Перейти до WayForPay"));
 
-    await waitFor(() => expect(submitted).not.toBeNull());
-    const form = submitted as unknown as HTMLFormElement;
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    const form = submit.mock.contexts[0] as HTMLFormElement;
     expect(form.method.toLowerCase()).toBe("post");
     expect(form.action).toBe("https://secure.wayforpay.com/verify");
     const data = Object.fromEntries(new FormData(form));

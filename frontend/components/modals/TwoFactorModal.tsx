@@ -227,7 +227,7 @@ export default function TwoFactorModal({
             gap: 8,
             padding: "8px 12px",
             borderRadius: 10,
-            background: "var(--bg-2, rgba(0,153,86,0.08))",
+            background: "var(--bg-2, color-mix(in srgb, var(--accent) 8%, transparent))",
             marginBottom: 16,
             fontSize: 12,
             color: "var(--text-2, #aaa)",

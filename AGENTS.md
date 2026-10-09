@@ -148,7 +148,9 @@ The project uses **CSS custom properties exclusively**. Never hardcode colors.
 ```css
 /* Backgrounds */   --bg, --bg-2, --surface, --surface-2, --surface-3
 /* Text */          --text, --text-2, --text-3
-/* Accent */        --accent, --accent-dim, --accent-glow, --accent-glow-strong
+/* Accent */        --accent (basil green, actions), --accent-dim, --accent-ink (text on accent),
+                    --accent-glow, --accent-glow-strong
+/* Price */         --price (apricot) — prices and totals only
 /* Borders */       --border, --border-2
 /* Danger */        --red, --red-glow
 /* Specific */      --header-bg, --nav-mobile-bg
@@ -419,8 +421,9 @@ return reply.status(400).send({ error: "Невалідні дані" })
 
 ```typescript
 // ❌ Hardcode colors
-color: "#00d46a"; // → var(--accent)
-background: "#161616"; // → var(--surface)
+color: "#93cf6b"; // → var(--accent)
+background: "#1f1a16"; // → var(--surface)
+// Tints of the accent: color-mix(in srgb, var(--accent) 12%, transparent)
 
 // ❌ Use React Context for global state → use Zustand
 
