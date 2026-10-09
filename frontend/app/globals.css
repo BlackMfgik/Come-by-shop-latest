@@ -534,9 +534,9 @@ header > .burger img {
 }
 .hero h1 {
   font-family: "Syne", sans-serif;
-  font-size: clamp(2.4rem, 4.6vw, calc(4.4rem * var(--scale)));
+  font-size: clamp(2.2rem, 3.7vw, calc(3.6rem * var(--scale)));
   font-weight: 800;
-  line-height: 1.02;
+  line-height: 1.04;
   letter-spacing: -0.035em;
   color: var(--text);
   margin: 0;
@@ -544,7 +544,7 @@ header > .burger img {
 }
 .hero h1 em {
   font-style: normal;
-  color: var(--price);
+  color: var(--accent);
 }
 .hero-sub {
   margin: 0;
