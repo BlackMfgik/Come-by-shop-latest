@@ -155,16 +155,16 @@ const EMPTY_FORM = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
-  color: "var(--color-text-secondary)",
+  color: "var(--text-2)",
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "9px 12px",
   borderRadius: 10,
-  border: "0.5px solid var(--color-border-secondary)",
-  background: "var(--color-background-secondary)",
-  color: "var(--color-text-primary)",
+  border: "0.5px solid var(--border-2)",
+  background: "var(--surface-2)",
+  color: "var(--text)",
   fontSize: 14,
 };
 
@@ -190,9 +190,9 @@ function ActionBtn({
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 8,
-        border: `0.5px solid ${danger ? "#FCEBEB" : "var(--color-border-secondary)"}`,
+        border: `0.5px solid ${danger ? "#FCEBEB" : "var(--border-2)"}`,
         background: "transparent",
-        color: danger ? "#A32D2D" : "var(--color-text-secondary)",
+        color: danger ? "#A32D2D" : "var(--text-2)",
         cursor: "pointer",
       }}
     >
@@ -242,10 +242,10 @@ function OrderCard({
   return (
     <div
       style={{
-        border: "0.5px solid var(--color-border-tertiary)",
+        border: "0.5px solid var(--border)",
         borderRadius: 14,
         overflow: "hidden",
-        background: "var(--color-background-primary)",
+        background: "var(--surface)",
       }}
     >
       <div
@@ -273,7 +273,7 @@ function OrderCard({
               style={{
                 fontWeight: 600,
                 fontSize: 14,
-                color: "var(--color-text-primary)",
+                color: "var(--text)",
               }}
             >
               Замовлення #{order.id}
@@ -281,7 +281,7 @@ function OrderCard({
             <div
               style={{
                 fontSize: 12,
-                color: "var(--color-text-secondary)",
+                color: "var(--text-2)",
                 marginTop: 2,
               }}
             >
@@ -299,12 +299,12 @@ function OrderCard({
           >
             <User
               size={12}
-              style={{ color: "var(--color-text-secondary)", flexShrink: 0 }}
+              style={{ color: "var(--text-2)", flexShrink: 0 }}
             />
             <span
               style={{
                 fontSize: 13,
-                color: "var(--color-text-secondary)",
+                color: "var(--text-2)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -327,7 +327,7 @@ function OrderCard({
             style={{
               fontWeight: 700,
               fontSize: 14,
-              color: "var(--color-text-primary)",
+              color: "var(--text)",
             }}
           >
             {Number(order.total).toFixed(2)} ₴
@@ -336,12 +336,12 @@ function OrderCard({
           {open ? (
             <ChevronUp
               size={16}
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{ color: "var(--text-2)" }}
             />
           ) : (
             <ChevronDown
               size={16}
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{ color: "var(--text-2)" }}
             />
           )}
         </div>
@@ -350,7 +350,7 @@ function OrderCard({
       {open && (
         <div
           style={{
-            borderTop: "0.5px solid var(--color-border-tertiary)",
+            borderTop: "0.5px solid var(--border)",
             padding: "16px 18px",
           }}
         >
@@ -361,7 +361,7 @@ function OrderCard({
               flexWrap: "wrap",
               padding: "10px 14px",
               borderRadius: 10,
-              background: "var(--color-background-secondary)",
+              background: "var(--surface-2)",
               marginBottom: 14,
             }}
           >
@@ -375,10 +375,10 @@ function OrderCard({
             >
               <User
                 size={13}
-                style={{ color: "var(--color-text-secondary)" }}
+                style={{ color: "var(--text-2)" }}
               />
               <span
-                style={{ color: "var(--color-text-primary)", fontWeight: 500 }}
+                style={{ color: "var(--text)", fontWeight: 500 }}
               >
                 {order.userName}
               </span>
@@ -391,7 +391,7 @@ function OrderCard({
                   alignItems: "center",
                   gap: 6,
                   fontSize: 13,
-                  color: "var(--color-text-secondary)",
+                  color: "var(--text-2)",
                   textDecoration: "none",
                 }}
               >
@@ -406,7 +406,7 @@ function OrderCard({
                   alignItems: "center",
                   gap: 6,
                   fontSize: 13,
-                  color: "var(--color-text-secondary)",
+                  color: "var(--text-2)",
                 }}
               >
                 <MapPin size={13} />
@@ -421,7 +421,7 @@ function OrderCard({
                   alignItems: "center",
                   gap: 6,
                   fontSize: 13,
-                  color: "var(--color-text-secondary)",
+                  color: "var(--text-2)",
                   textDecoration: "none",
                 }}
               >
@@ -442,16 +442,16 @@ function OrderCard({
                   padding: "6px 0",
                   borderBottom:
                     idx < order.items.length - 1
-                      ? "0.5px solid var(--color-border-tertiary)"
+                      ? "0.5px solid var(--border)"
                       : "none",
                   fontSize: 13,
                 }}
               >
-                <span style={{ color: "var(--color-text-primary)" }}>
+                <span style={{ color: "var(--text)" }}>
                   {item.productName}
                   <span
                     style={{
-                      color: "var(--color-text-secondary)",
+                      color: "var(--text-2)",
                       marginLeft: 6,
                     }}
                   >
@@ -461,7 +461,7 @@ function OrderCard({
                 <span
                   style={{
                     fontWeight: 500,
-                    color: "var(--color-text-primary)",
+                    color: "var(--text)",
                   }}
                 >
                   {(Number(item.price) * item.quantity).toFixed(2)} ₴
@@ -474,10 +474,10 @@ function OrderCard({
                 justifyContent: "space-between",
                 marginTop: 10,
                 paddingTop: 10,
-                borderTop: "0.5px solid var(--color-border-secondary)",
+                borderTop: "0.5px solid var(--border-2)",
                 fontWeight: 700,
                 fontSize: 14,
-                color: "var(--color-text-primary)",
+                color: "var(--text)",
               }}
             >
               <span>Разом</span>
@@ -490,7 +490,7 @@ function OrderCard({
               <div
                 style={{
                   fontSize: 11,
-                  color: "var(--color-text-secondary)",
+                  color: "var(--text-2)",
                   marginBottom: 8,
                   fontWeight: 600,
                   textTransform: "uppercase",
@@ -539,7 +539,7 @@ function OrderCard({
                 alignItems: "center",
                 gap: 6,
                 fontSize: 12,
-                color: "var(--color-text-secondary)",
+                color: "var(--text-2)",
                 fontStyle: "italic",
               }}
             >
@@ -591,14 +591,14 @@ function OrderFilters({
               fontWeight: 600,
               cursor: "pointer",
               border: isActive
-                ? `1.5px solid ${cfg?.color ?? "var(--color-text-primary)"}`
-                : "0.5px solid var(--color-border-secondary)",
+                ? `1.5px solid ${cfg?.color ?? "var(--text)"}`
+                : "0.5px solid var(--border-2)",
               background: isActive
-                ? (cfg?.bg ?? "var(--color-background-secondary)")
+                ? (cfg?.bg ?? "var(--surface-2)")
                 : "transparent",
               color: isActive
-                ? (cfg?.color ?? "var(--color-text-primary)")
-                : "var(--color-text-secondary)",
+                ? (cfg?.color ?? "var(--text)")
+                : "var(--text-2)",
             }}
           >
             {s !== "Усі" && cfg?.icon}
@@ -608,8 +608,8 @@ function OrderFilters({
                 style={{
                   background: isActive
                     ? cfg?.color
-                    : "var(--color-border-secondary)",
-                  color: isActive ? "#fff" : "var(--color-text-secondary)",
+                    : "var(--border-2)",
+                  color: isActive ? "#fff" : "var(--text-2)",
                   borderRadius: 99,
                   padding: "0 5px",
                   fontSize: 10,
@@ -680,7 +680,7 @@ function OrdersTab({ token }: { token: string }) {
         style={{
           textAlign: "center",
           padding: "3rem",
-          color: "var(--color-text-secondary)",
+          color: "var(--text-2)",
           fontSize: 14,
         }}
       >
@@ -699,9 +699,9 @@ function OrdersTab({ token }: { token: string }) {
           marginBottom: 16,
         }}
       >
-        <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
+        <div style={{ fontSize: 13, color: "var(--text-2)" }}>
           Всього замовлень:{" "}
-          <strong style={{ color: "var(--color-text-primary)" }}>
+          <strong style={{ color: "var(--text)" }}>
             {orders.length}
           </strong>
         </div>
@@ -712,9 +712,9 @@ function OrdersTab({ token }: { token: string }) {
             padding: "5px 12px",
             borderRadius: 8,
             cursor: "pointer",
-            border: "0.5px solid var(--color-border-secondary)",
+            border: "0.5px solid var(--border-2)",
             background: "transparent",
-            color: "var(--color-text-secondary)",
+            color: "var(--text-2)",
           }}
         >
           ↻ Оновити
@@ -732,9 +732,9 @@ function OrdersTab({ token }: { token: string }) {
           style={{
             textAlign: "center",
             padding: "3rem",
-            color: "var(--color-text-secondary)",
+            color: "var(--text-2)",
             fontSize: 14,
-            border: "0.5px dashed var(--color-border-secondary)",
+            border: "0.5px dashed var(--border-2)",
             borderRadius: 14,
           }}
         >
@@ -909,13 +909,20 @@ export default function AdminPanel() {
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   return (
-    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "2rem 1.5rem" }}>
+    <div
+      style={{
+        maxWidth: 1400,
+        margin: "0 auto",
+        // Відступ під фіксовану шапку, інакше вкладки ховаються під нею
+        padding: "calc(72px * var(--scale) + 2rem) 1.5rem 2rem",
+      }}
+    >
       <div
         style={{
           display: "flex",
           gap: 4,
           marginBottom: "2rem",
-          borderBottom: "0.5px solid var(--color-border-tertiary)",
+          borderBottom: "0.5px solid var(--border)",
           paddingBottom: 0,
         }}
       >
@@ -944,12 +951,12 @@ export default function AdminPanel() {
               border: "none",
               borderBottom:
                 activeTab === tab.id
-                  ? "2px solid var(--color-text-primary)"
+                  ? "2px solid var(--text)"
                   : "2px solid transparent",
               color:
                 activeTab === tab.id
-                  ? "var(--color-text-primary)"
-                  : "var(--color-text-secondary)",
+                  ? "var(--text)"
+                  : "var(--text-2)",
               marginBottom: -1,
             }}
           >
@@ -969,8 +976,8 @@ export default function AdminPanel() {
         >
           <div
             style={{
-              background: "var(--color-background-primary)",
-              border: "0.5px solid var(--color-border-tertiary)",
+              background: "var(--surface)",
+              border: "0.5px solid var(--border)",
               borderRadius: 16,
               position: "sticky",
               top: "1rem",
@@ -1001,10 +1008,10 @@ export default function AdminPanel() {
                     fontSize: 13,
                     padding: "6px 12px",
                     borderRadius: 8,
-                    border: "0.5px solid var(--color-border-secondary)",
+                    border: "0.5px solid var(--border-2)",
                     background: "transparent",
                     cursor: "pointer",
-                    color: "var(--color-text-secondary)",
+                    color: "var(--text-2)",
                   }}
                 >
                   <X size={14} /> Скасувати
@@ -1149,8 +1156,8 @@ export default function AdminPanel() {
                         padding: "10px 22px",
                         borderRadius: 10,
                         border: "none",
-                        background: "var(--color-text-primary)",
-                        color: "var(--color-background-primary)",
+                        background: "var(--text)",
+                        color: "var(--surface)",
                         fontSize: 14,
                         fontWeight: 600,
                         cursor: saving ? "not-allowed" : "pointer",
@@ -1190,16 +1197,16 @@ export default function AdminPanel() {
                           border: "1.5px solid",
                           borderColor:
                             uploadMode === mode
-                              ? "var(--color-text-primary)"
-                              : "var(--color-border)",
+                              ? "var(--text)"
+                              : "var(--border)",
                           background:
                             uploadMode === mode
-                              ? "var(--color-text-primary)"
+                              ? "var(--text)"
                               : "transparent",
                           color:
                             uploadMode === mode
-                              ? "var(--color-background-primary)"
-                              : "var(--color-text-secondary)",
+                              ? "var(--surface)"
+                              : "var(--text-2)",
                           fontSize: 11,
                           fontWeight: 600,
                           cursor: "pointer",
@@ -1221,12 +1228,12 @@ export default function AdminPanel() {
                         justifyContent: "center",
                         gap: 6,
                         height: 160,
-                        border: "2px dashed var(--color-border)",
+                        border: "2px dashed var(--border)",
                         borderRadius: 12,
                         cursor: uploading ? "not-allowed" : "pointer",
                         background: form.imageUrl
                           ? "transparent"
-                          : "var(--color-background-secondary)",
+                          : "var(--surface-2)",
                         overflow: "hidden",
                         position: "relative",
                         transition: "border-color .2s",
@@ -1268,8 +1275,8 @@ export default function AdminPanel() {
                             style={{
                               width: 24,
                               height: 24,
-                              border: "3px solid var(--color-border)",
-                              borderTop: "3px solid var(--color-text-primary)",
+                              border: "3px solid var(--border)",
+                              borderTop: "3px solid var(--text)",
                               borderRadius: "50%",
                               animation: "spin 0.8s linear infinite",
                             }}
@@ -1277,7 +1284,7 @@ export default function AdminPanel() {
                           <span
                             style={{
                               fontSize: 11,
-                              color: "var(--color-text-secondary)",
+                              color: "var(--text-2)",
                             }}
                           >
                             Завантаження...
@@ -1287,12 +1294,12 @@ export default function AdminPanel() {
                         <>
                           <ImageIcon
                             size={26}
-                            style={{ color: "var(--color-text-secondary)" }}
+                            style={{ color: "var(--text-2)" }}
                           />
                           <span
                             style={{
                               fontSize: 11,
-                              color: "var(--color-text-secondary)",
+                              color: "var(--text-2)",
                               textAlign: "center",
                               lineHeight: 1.4,
                             }}
@@ -1325,7 +1332,7 @@ export default function AdminPanel() {
                             height: 130,
                             objectFit: "cover",
                             borderRadius: 10,
-                            border: "1px solid var(--color-border)",
+                            border: "1px solid var(--border)",
                           }}
                         />
                       )}
@@ -1350,8 +1357,8 @@ export default function AdminPanel() {
                           padding: "7px 0",
                           borderRadius: 8,
                           border: "none",
-                          background: "var(--color-text-primary)",
-                          color: "var(--color-background-primary)",
+                          background: "var(--text)",
+                          color: "var(--surface)",
                           fontSize: 12,
                           fontWeight: 500,
                           cursor: "pointer",
@@ -1371,9 +1378,9 @@ export default function AdminPanel() {
                       style={{
                         padding: "5px 0",
                         borderRadius: 7,
-                        border: "1px solid var(--color-border)",
+                        border: "1px solid var(--border)",
                         background: "transparent",
-                        color: "var(--color-text-secondary)",
+                        color: "var(--text-2)",
                         fontSize: 11,
                         cursor: "pointer",
                         display: "flex",
@@ -1392,8 +1399,8 @@ export default function AdminPanel() {
 
           <div
             style={{
-              background: "var(--color-background-primary)",
-              border: "0.5px solid var(--color-border-tertiary)",
+              background: "var(--surface)",
+              border: "0.5px solid var(--border)",
               borderRadius: 16,
               overflow: "hidden",
             }}
@@ -1401,7 +1408,7 @@ export default function AdminPanel() {
             <div
               style={{
                 padding: "1rem 1.5rem",
-                borderBottom: "0.5px solid var(--color-border-tertiary)",
+                borderBottom: "0.5px solid var(--border)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1411,7 +1418,7 @@ export default function AdminPanel() {
                 Товари
               </h2>
               <span
-                style={{ fontSize: 13, color: "var(--color-text-secondary)" }}
+                style={{ fontSize: 13, color: "var(--text-2)" }}
               >
                 {products.length} позицій
               </span>
@@ -1421,7 +1428,7 @@ export default function AdminPanel() {
                 style={{
                   padding: "2rem",
                   textAlign: "center",
-                  color: "var(--color-text-secondary)",
+                  color: "var(--text-2)",
                   fontSize: 14,
                 }}
               >
@@ -1437,7 +1444,7 @@ export default function AdminPanel() {
               >
                 <thead>
                   <tr
-                    style={{ background: "var(--color-background-secondary)" }}
+                    style={{ background: "var(--surface-2)" }}
                   >
                     {[
                       "Фото",
@@ -1453,9 +1460,9 @@ export default function AdminPanel() {
                           padding: "10px 16px",
                           textAlign: "left",
                           fontWeight: 500,
-                          color: "var(--color-text-secondary)",
+                          color: "var(--text-2)",
                           borderBottom:
-                            "0.5px solid var(--color-border-tertiary)",
+                            "0.5px solid var(--border)",
                         }}
                       >
                         {h}
@@ -1469,7 +1476,7 @@ export default function AdminPanel() {
                       key={p.id}
                       style={{
                         borderBottom:
-                          "0.5px solid var(--color-border-tertiary)",
+                          "0.5px solid var(--border)",
                         opacity: p.hidden ? 0.5 : 1,
                       }}
                     >
@@ -1489,7 +1496,7 @@ export default function AdminPanel() {
                         style={{
                           padding: "10px 16px",
                           fontWeight: 500,
-                          color: "var(--color-text-primary)",
+                          color: "var(--text)",
                         }}
                       >
                         {p.name}
@@ -1497,13 +1504,13 @@ export default function AdminPanel() {
                       <td
                         style={{
                           padding: "10px 16px",
-                          color: "var(--color-text-secondary)",
+                          color: "var(--text-2)",
                         }}
                       >
                         {p.category ? (
                           <span
                             style={{
-                              background: "var(--color-background-secondary)",
+                              background: "var(--surface-2)",
                               padding: "2px 8px",
                               borderRadius: 99,
                               fontSize: 11,
@@ -1518,7 +1525,7 @@ export default function AdminPanel() {
                       <td
                         style={{
                           padding: "10px 16px",
-                          color: "var(--color-text-primary)",
+                          color: "var(--text)",
                         }}
                       >
                         {Number(p.price).toFixed(2)} ₴
@@ -1530,10 +1537,10 @@ export default function AdminPanel() {
                             padding: "2px 8px",
                             borderRadius: 99,
                             background: p.hidden
-                              ? "var(--color-background-secondary)"
+                              ? "var(--surface-2)"
                               : "#EAF3DE",
                             color: p.hidden
-                              ? "var(--color-text-secondary)"
+                              ? "var(--text-2)"
                               : "#3B6D11",
                           }}
                         >
