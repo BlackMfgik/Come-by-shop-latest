@@ -110,8 +110,8 @@ const STATUS_CONFIG: Record<
     next: ["В дорозі"],
   },
   "В дорозі": {
-    color: "var(--accent)",
-    bg: "color-mix(in srgb, var(--accent) 12%, transparent)",
+    color: "#009956",
+    bg: "rgba(0,153,86,0.12)",
     icon: <Truck size={13} />,
     next: ["Доставлено"],
   },

@@ -82,7 +82,7 @@ export default function OtpInput({
         }
         .otp-box.filled  { border-color: var(--accent, #009956); }
         .otp-box.error   { border-color: var(--red, #e53935); }
-        .otp-box:focus   { border-color: var(--accent, #009956); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+        .otp-box:focus   { border-color: var(--accent, #009956); box-shadow: 0 0 0 3px rgba(0,153,86,0.15); }
         .otp-box:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>

@@ -114,7 +114,7 @@ function CardVisual({
             borderRadius: 14,
             background:
               "linear-gradient(140deg,#1c2f1c 0%,#0e1f0f 55%,#162616 100%)",
-            border: "1px solid color-mix(in srgb, var(--accent) 18%, transparent)",
+            border: "1px solid rgba(0,180,100,0.18)",
             boxShadow:
               "0 8px 28px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.04)",
             padding: "18px 20px",
@@ -133,7 +133,7 @@ function CardVisual({
               height: 170,
               borderRadius: "50%",
               background:
-                "radial-gradient(circle,color-mix(in srgb, var(--accent) 9%, transparent) 0%,transparent 70%)",
+                "radial-gradient(circle,rgba(0,180,100,0.09) 0%,transparent 70%)",
               pointerEvents: "none",
             }}
           />
@@ -265,7 +265,7 @@ function CardVisual({
             backfaceVisibility: "hidden",
             borderRadius: 14,
             background: "linear-gradient(140deg,#1a2a1a 0%,#0d1f0d 100%)",
-            border: "1px solid color-mix(in srgb, var(--accent) 18%, transparent)",
+            border: "1px solid rgba(0,180,100,0.18)",
             transform: "rotateY(180deg)",
             overflow: "hidden",
           }}
@@ -416,7 +416,7 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
                 width: 38,
                 height: 38,
                 borderRadius: "50%",
-                border: "3px solid color-mix(in srgb, var(--accent) 12%, transparent)",
+                border: "3px solid rgba(0,180,100,0.12)",
                 borderTopColor: "var(--accent,#009956)",
                 animation: "pm-spin .75s linear infinite",
                 margin: "0 auto 14px",
@@ -501,7 +501,7 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  background: "color-mix(in srgb, var(--accent) 10%, transparent)",
+                  background: "rgba(0,153,86,0.1)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -699,7 +699,7 @@ export default function PaymentCardModal({ token, onSuccess, onClose }: Props) {
                 width: 62,
                 height: 62,
                 borderRadius: "50%",
-                background: "color-mix(in srgb, var(--accent) 10%, transparent)",
+                background: "rgba(0,153,86,0.1)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

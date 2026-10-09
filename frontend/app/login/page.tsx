@@ -247,7 +247,7 @@ export default function LoginPage() {
                   padding: "10px",
                   borderRadius: 10,
                   border: "1.5px solid var(--accent, #009956)",
-                  background: "color-mix(in srgb, var(--accent) 6%, transparent)",
+                  background: "rgba(0,153,86,0.06)",
                   color: "var(--accent, #009956)",
                   fontSize: 13,
                   fontWeight: 500,
