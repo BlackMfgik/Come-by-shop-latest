@@ -1,9 +1,7 @@
-@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap");
-
 /*
  * Come by — «ринкова крамниця»: нейтральний графітовий фон замість чистого чорного,
  * базиліковий зелений для дій і абрикосовий для цін (дві харчові ноти замість
- * одного неонового акценту). Syne — заголовки й ціни, DM Sans — текст.
+ * одного неонового акценту). Unbounded — заголовки й ціни, Manrope — текст.
  */
 :root,
 [data-theme="dark"] {
@@ -62,6 +60,8 @@
 }
 
 :root {
+  --font-display: var(--font-unbounded), "Arial Black", system-ui, sans-serif;
+  --font-body: var(--font-manrope), system-ui, -apple-system, "Segoe UI", sans-serif;
   --radius: 14px;
   --radius-sm: 8px;
   --radius-lg: 22px;
@@ -84,7 +84,7 @@ html {
 }
 
 body {
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-size: calc(15px * var(--scale));
   line-height: 1.6;
   color: var(--text);
@@ -110,7 +110,7 @@ main {
 h1,
 h2,
 h3 {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
 
@@ -139,7 +139,7 @@ header {
 
 
 .logo {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: calc(1.6rem * var(--scale));
   color: var(--accent);
@@ -168,7 +168,7 @@ header {
   align-items: center;
 }
 .nav-center a {
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-weight: 500;
   font-size: calc(0.92rem * var(--scale));
   padding: calc(8px * var(--scale)) calc(18px * var(--scale));
@@ -371,7 +371,7 @@ header > .burger img {
   border: none;
   outline: none;
   font-size: calc(0.9rem * var(--scale));
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   background: transparent;
   color: var(--text);
   display: block;
@@ -421,7 +421,7 @@ header > .burger img {
   background: transparent;
   color: var(--text);
   font-size: calc(0.9rem * var(--scale));
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   padding: 0;
   min-width: 0;
   -webkit-appearance: none;
@@ -534,11 +534,11 @@ header > .burger img {
   color: var(--text-2);
 }
 .hero h1 {
-  font-family: "Syne", sans-serif;
-  font-size: clamp(2.2rem, 3.7vw, calc(3.6rem * var(--scale)));
-  font-weight: 800;
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 3.5vw, calc(3.4rem * var(--scale)));
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
   color: var(--text);
   margin: 0;
   text-wrap: balance;
@@ -625,7 +625,7 @@ header > .burger img {
   justify-content: center;
   text-decoration: none;
   color: var(--text);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: calc(0.92rem * var(--scale));
   width: min(90%, calc(200px * var(--scale)));
@@ -664,7 +664,7 @@ header > .burger img {
   transform: translateY(-2px);
 }
 button.halo {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
 }
 
 .btn-img {
@@ -716,7 +716,7 @@ button.halo {
 }
 .cart-header h2 {
   margin: 0;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(1.1rem * var(--scale));
   font-weight: 700;
   color: var(--text);
@@ -888,7 +888,7 @@ button.halo {
 }
 .cart-summary span {
   color: var(--price);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-size: calc(1.1rem * var(--scale));
@@ -902,7 +902,7 @@ button.halo {
   padding: calc(14px * var(--scale));
   background: var(--accent);
   color: #000;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(0.9rem * var(--scale));
   font-weight: 700;
   border: none;
@@ -946,7 +946,7 @@ button.halo {
 }
 .catalog-title {
   grid-column: 1/-1;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(2rem * var(--scale));
   font-weight: 800;
   margin-bottom: 8px;
@@ -1031,7 +1031,7 @@ button.halo {
   padding-top: 12px;
 }
 .product-price {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   color: var(--price);
   font-size: 1.4rem;
   font-weight: 700;
@@ -1047,7 +1047,7 @@ button.halo {
   padding: 9px 14px;
   font-size: 0.92rem;
   font-weight: 600;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1102,7 +1102,7 @@ button.halo {
   padding: calc(10px * var(--scale)) calc(14px * var(--scale));
   border-radius: var(--radius-sm);
   font-size: calc(0.88rem * var(--scale));
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   outline: none;
   transition:
     border-color var(--tr),
@@ -1194,7 +1194,7 @@ footer {
   filter: var(--logo-filter);
 }
 .footer-brand {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(1.4rem * var(--scale));
   font-weight: 800;
   color: var(--accent);
@@ -1230,7 +1230,7 @@ footer {
 }
 .footer-contacts b,
 .footer-nav b {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(0.8rem * var(--scale));
   font-weight: 700;
   color: var(--text);
@@ -1354,7 +1354,7 @@ footer {
   }
 
   details.footer-contacts > summary b {
-    font-family: "Syne", sans-serif;
+    font-family: var(--font-display);
     font-size: 0.76rem;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -1403,7 +1403,7 @@ footer {
 }
 
 .register-title {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(1.5rem * var(--scale));
   font-weight: 800;
   color: var(--text);
@@ -1537,7 +1537,7 @@ input {
   border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
   font-size: calc(0.9rem * var(--scale));
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   color: var(--text);
   outline: none;
   transition:
@@ -1559,7 +1559,7 @@ input::placeholder {
   border: none;
   padding: calc(13px * var(--scale));
   border-radius: var(--radius-sm);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(0.95rem * var(--scale));
   font-weight: 700;
   cursor: pointer;
@@ -1593,7 +1593,7 @@ input::placeholder {
   padding: calc(11px * var(--scale)) calc(18px * var(--scale));
   width: 100%;
   font-size: calc(0.88rem * var(--scale));
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
@@ -1705,7 +1705,7 @@ input::placeholder {
   width: 0;
 }
 .account-content h1 {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(1.75rem * var(--scale));
   font-weight: 800;
   margin-bottom: calc(20px * var(--scale));
@@ -2035,7 +2035,7 @@ input::placeholder {
 
 #modal-title {
   margin: 0;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(1.05rem * var(--scale));
   font-weight: 700;
   color: var(--text);
@@ -2054,7 +2054,7 @@ input::placeholder {
   font-size: calc(0.9rem * var(--scale));
   background: var(--bg-2);
   color: var(--text);
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   outline: none;
   transition:
     border-color var(--tr),
@@ -2084,7 +2084,7 @@ input::placeholder {
   border-radius: 999px;
   border: none;
   cursor: pointer;
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: calc(0.85rem * var(--scale));
   transition: all var(--tr);
@@ -2154,7 +2154,7 @@ input::placeholder {
   box-shadow: var(--shadow-lg);
 }
 .order-modal-header h2 {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   margin: 0 0 6px;
   font-size: calc(1.4rem * var(--scale));
   font-weight: 800;
@@ -2211,7 +2211,7 @@ input::placeholder {
 .order-btn {
   border-radius: 999px;
   padding: calc(10px * var(--scale)) calc(24px * var(--scale));
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: calc(0.85rem * var(--scale));
   font-weight: 700;
   border: 1px solid transparent;
@@ -2251,7 +2251,7 @@ input::placeholder {
   margin: 0 auto;
 }
 .team-section h1 {
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, calc(3.5rem * var(--scale)));
   font-weight: 800;
   margin-bottom: 32px;
@@ -2686,7 +2686,7 @@ input::placeholder {
   border-radius: 999px;
   border: 1.5px solid var(--accent);
   color: var(--accent);
-  font-family: "Syne", sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   text-decoration: none;
   transition:

@@ -159,9 +159,12 @@ The project uses **CSS custom properties exclusively**. Never hardcode colors.
 
 ### Fonts
 
-- **Syne** — headings/display. Loaded via `@import` in `globals.css`. **NOT `next/font`** — no Cyrillic subset.
-- **DM Sans** — body text. Same approach.
-- Never move fonts to `next/font/google`.
+- **Unbounded** — headings, prices, logo text → `var(--font-display)`.
+- **Manrope** — body text, buttons, forms → `var(--font-body)`.
+- Loaded with `next/font/google` in `app/layout.tsx` with `subsets: ["latin", "cyrillic", "cyrillic-ext"]`
+  (self-hosted at build time, no request to Google at runtime).
+- Any new font **must** include the `cyrillic` and `cyrillic-ext` subsets (ї, є, ґ). The old Syne / DM Sans
+  had no Cyrillic, so Ukrainian text silently fell back to system fonts.
 
 ---
 
@@ -440,7 +443,7 @@ background: "#1f1a16"; // → var(--surface)
 // ❌ Use <form> HTML tag in React artifacts
 //    → use React Hook Form handleSubmit instead
 
-// ❌ Move fonts to next/font/google — Syne has no Cyrillic subset
+// ❌ Use fonts without Cyrillic, or load them via @import in CSS
 ```
 
 ---
@@ -515,7 +518,7 @@ cd backend && npm run test:watch
 | #   | Issue                                   | Action                                              |
 | --- | --------------------------------------- | --------------------------------------------------- |
 | 1   | `suppressHydrationWarning` on `<body>`  | Keep it — intentional, caused by browser extensions |
-| 2   | Syne/DM Sans via `@import` in CSS       | Never move to `next/font` — no Cyrillic subset      |
+| 2   | Fonts via `next/font/google`            | Always include `cyrillic` + `cyrillic-ext` subsets  |
 | 3   | `searchStore.ts.ts` double extension    | Do not rename                                       |
 | 4   | Global `form {}` CSS rule               | Scope to `#admin-product-form form {}` only         |
 | 5   | Focus outline                           | Override with `!important` where needed             |

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Manrope, Unbounded } from "next/font/google";
 import Providers from "@/components/Providers";
 import "./globals.css";
 
@@ -35,6 +36,18 @@ export const metadata: Metadata = {
   },
 };
 
+// Обидва шрифти мають повну кирилицю (ї, є, ґ); роздаються з нашого домену
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  variable: "--font-unbounded",
+  display: "swap",
+});
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0c0c0c" },
@@ -51,15 +64,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html
+      lang="uk"
+      data-scroll-behavior="smooth"
+      className={`${unbounded.variable} ${manrope.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link
           rel="icon"
