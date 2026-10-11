@@ -3,8 +3,11 @@
 // Видалити разом із використанням у ProductCatalog.tsx, коли в базі з’являться товари.
 import type { Product } from "@/types";
 
+// Через оптимізатор Next.js (той самий домен), щоб фото не залежали від доступу браузера до Unsplash
 const photo = (id: string) =>
-  `https://images.unsplash.com/photo-${id}?w=600&h=600&fit=crop&auto=format&q=70`;
+  `/_next/image?url=${encodeURIComponent(
+    `https://images.unsplash.com/photo-${id}?w=800&h=800&fit=crop&auto=format&q=75`,
+  )}&w=640&q=75`;
 
 export const DEMO_PRODUCTS: Product[] = [
   { id: 9001, category: "Піца", name: "Піца Маргарита", description: "Томатний соус, моцарела, свіжий базилік, оливкова олія", weight: "450 г", price: 189, image: photo("1574071318508-1cdbab80d002") },
