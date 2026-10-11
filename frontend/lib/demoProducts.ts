@@ -16,7 +16,7 @@ export const DEMO_PRODUCTS: Product[] = [
   { id: 9004, category: "Піца", name: "Піца Гавайська", description: "Курка, ананас, моцарела, томатний соус", weight: "500 г", price: 209, image: photo("1565299624946-b28f40a0ae38") },
   { id: 9005, category: "Піца", name: "Піца з грибами", description: "Печериці, моцарела, вершковий соус, тим'ян", weight: "460 г", price: 199, image: photo("1604382354936-07c5d9983bd3") },
   { id: 9006, category: "Піца", name: "Піца Мисливська", description: "Мисливські ковбаски, бекон, цибуля, гірчичний соус", weight: "520 г", price: 249, image: photo("1594007654729-407eedc4be65") },
-  { id: 9007, category: "Бургери", name: "Бургер Класичний", description: "Яловича котлета, чедер, томат, салат, фірмовий соус", weight: "320 г", price: 165, image: photo("1568901346375-23c9408a7f0a") },
+  { id: 9007, category: "Бургери", name: "Бургер Класичний", description: "Яловича котлета, чедер, томат, салат, фірмовий соус", weight: "320 г", price: 165, image: photo("1571091718767-18b5b1457add") },
   { id: 9008, category: "Бургери", name: "Чізбургер Подвійний", description: "Дві яловичі котлети, подвійний чедер, мариновані огірки", weight: "410 г", price: 209, image: photo("1550547660-d9450f859349") },
   { id: 9009, category: "Бургери", name: "Бургер з беконом", description: "Яловичина, хрусткий бекон, чедер, BBQ-соус", weight: "380 г", price: 199, image: photo("1553979459-d2229ba7433b") },
   { id: 9010, category: "Бургери", name: "Курячий бургер", description: "Курка в паніровці, салат айсберг, часниковий соус", weight: "340 г", price: 169, image: photo("1606755962773-d324e0a13086") },
@@ -57,7 +57,7 @@ export const DEMO_PRODUCTS: Product[] = [
   { id: 9045, category: "Напої", name: "Зелений чай з жасмином", description: "Китайський зелений чай з квітами жасмину", weight: "500 мл", price: 49, image: photo("1556679343-c7306c1976bc") },
   { id: 9046, category: "Напої", name: "Смузі ягідний", description: "Полуниця, лохина, банан, йогурт", weight: "350 мл", price: 85, image: photo("1505252585461-04db1eb84625") },
   { id: 9047, category: "Комбо", name: "Комбо «Обід»", description: "Бургер Класичний + картопля фрі + лимонад", weight: "1 набір", price: 259, image: photo("1586190848861-99aa4a171e90") },
-  { id: 9048, category: "Комбо", name: "Комбо «Друзі»", description: "2 піци на вибір + 2 лимонади", weight: "1 набір", price: 449, image: photo("1571091718767-18b5b1457add") },
+  { id: 9048, category: "Комбо", name: "Комбо «Друзі»", description: "2 піци на вибір + 2 лимонади", weight: "1 набір", price: 449, image: photo("1555939594-58d7cb561ad1") },
   { id: 9049, category: "Комбо", name: "Комбо «Суші-вечір»", description: "Сет Токіо + 2 місо-супи + зелений чай", weight: "1 набір", price: 799, image: photo("1607301405390-d831c242f59b") },
   { id: 9050, category: "Комбо", name: "Комбо «Сніданок»", description: "Сирники + капучино + апельсиновий фреш", weight: "1 набір", price: 219, image: photo("1484723091739-30a097e8f929") },
 ];
