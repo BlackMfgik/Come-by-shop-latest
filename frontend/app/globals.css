@@ -17,7 +17,7 @@
   --accent-ink: #121412;
   --accent-glow: rgba(147, 207, 107, 0.16);
   --accent-glow-strong: rgba(147, 207, 107, 0.3);
-  --price: #f3a35f;
+  --price: var(--accent);
   --text: #eef1ea;
   --text-2: #a6aba2;
   --text-3: #71766e;
@@ -45,7 +45,7 @@
   --accent-ink: #fffefb;
   --accent-glow: rgba(61, 122, 38, 0.12);
   --accent-glow-strong: rgba(61, 122, 38, 0.24);
-  --price: #a9541a;
+  --price: var(--accent);
   --text: #1d1a15;
   --text-2: #5f584d;
   --text-3: #9a9285;
