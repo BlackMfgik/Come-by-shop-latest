@@ -115,6 +115,8 @@ const EMPTY_FORM = {
   customCategory: "",
 };
 
+type SortMode = "default" | "cheap" | "expensive";
+
 interface Props {
   initialProducts: Product[];
   searchQuery?: string;
@@ -184,7 +186,8 @@ export default function ProductCatalog({
   });
 
   // Скидаємо пагінацію при зміні фільтрів (без setState в useMemo)
-  const filterKey = `${effectiveQuery}|${activeCategory}`;
+  const [sort, setSort] = useState<SortMode>("default");
+  const filterKey = `${effectiveQuery}|${activeCategory}|${sort}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
@@ -195,8 +198,7 @@ export default function ProductCatalog({
     queryClient.invalidateQueries({ queryKey: ["products"] });
 
   const createMutation = useMutation({
-    mutationFn: (payload: ProductInput) =>
-      apiCreateProduct(payload, token!),
+    mutationFn: (payload: ProductInput) => apiCreateProduct(payload, token!),
     onSuccess: () => {
       toast.success("Товар додано ✓");
       setForm(EMPTY_FORM);
@@ -341,7 +343,26 @@ export default function ProductCatalog({
     return !activeCategory || p.category === activeCategory;
   });
 
-  const filtered = fuzzyFilter(categoryFiltered, effectiveQuery);
+  const searched = fuzzyFilter(categoryFiltered, effectiveQuery);
+  const filtered =
+    sort === "default"
+      ? searched
+      : [...searched].sort((a, b) =>
+          sort === "cheap"
+            ? Number(a.price) - Number(b.price)
+            : Number(b.price) - Number(a.price),
+        );
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products) {
+      if (!p.category || (!isAdmin && p.hidden)) continue;
+      counts[p.category] = (counts[p.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [products, isAdmin]);
+  const visibleTotal = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  const sidebar = !limit && !hideFilter && categories.length > 0;
   const pageSize = limit ?? PAGE_SIZE;
   const totalPages = limit
     ? 1
@@ -850,227 +871,267 @@ export default function ProductCatalog({
         </div>
       )}
 
-      {!hideFilter && categories.length > 0 && (
-        <div
-          style={
-            isAdmin ? undefined : { marginTop: "calc(80px * var(--scale))" }
-          }
-        >
-          <CategoryFilter
-            categories={categories}
-            active={activeCategory}
-            onChange={setActiveCategory}
-          />
-        </div>
-      )}
-
-      <section
-        className="catalog"
-        id="catalog"
-        style={
-          (!hideFilter && categories.length > 0) || isAdmin
-            ? { marginTop: 0 }
-            : undefined
-        }
-      >
-        {isLoading &&
-          Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
-
-        {!isLoading && isError && (
-          <p className="error-wrap">Не вдалося завантажити товари</p>
-        )}
-
-        {!isLoading && !isError && filtered.length === 0 && (
-          <div style={{ gridColumn: "1/-1" }}>
-            <EmptyState
-              title={
-                effectiveQuery ? "Нічого не знайдено" : "Товарів поки немає"
+      <div className={sidebar ? "catalog-layout" : "catalog-flow"}>
+        {!hideFilter &&
+          categories.length > 0 &&
+          (sidebar ? (
+            <aside className="catalog-sidebar" aria-label="Фільтри">
+              <CategoryFilter
+                variant="sidebar"
+                categories={categories}
+                counts={categoryCounts}
+                total={visibleTotal}
+                active={activeCategory}
+                onChange={setActiveCategory}
+              />
+              <div className="catalog-sort">
+                <span className="catalog-sidebar-title">Сортування</span>
+                {(
+                  [
+                    ["default", "Рекомендовані"],
+                    ["cheap", "Спочатку дешевші"],
+                    ["expensive", "Спочатку дорожчі"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`catalog-sort-btn${sort === value ? " active" : ""}`}
+                    onClick={() => setSort(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          ) : (
+            <div
+              style={
+                isAdmin ? undefined : { marginTop: "calc(80px * var(--scale))" }
               }
-              subtitle={
-                effectiveQuery
-                  ? `За запитом «${effectiveQuery}» нічого не знайдено`
-                  : "Поверніться пізніше — скоро буде більше~"
-              }
-            />
-          </div>
-        )}
+            >
+              <CategoryFilter
+                categories={categories}
+                active={activeCategory}
+                onChange={setActiveCategory}
+              />
+            </div>
+          ))}
 
-        {!isLoading &&
-          paginated.map((p, index) => {
-            const isHidden = p.hidden === true;
-            const showOverlay = isAdmin && overlayProductId === p.id;
+        <div className={sidebar ? "catalog-main" : "catalog-flow"}>
+          <section
+            className="catalog"
+            id="catalog"
+            style={
+              (!hideFilter && categories.length > 0) || isAdmin
+                ? { marginTop: 0 }
+                : undefined
+            }
+          >
+            {isLoading &&
+              Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
 
-            return (
-              <div
-                className="product-card"
-                data-id={p.id}
-                key={p.id}
-                role="button"
-                tabIndex={0}
-                aria-label={p.name}
-                style={{
-                  position: "relative",
-                  cursor: "pointer",
-                  opacity: isHidden && isAdmin ? 0.55 : 1,
-                }}
-                onClick={() => openCard(p)}
-                onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openCard(p);
+            {!isLoading && isError && (
+              <p className="error-wrap">Не вдалося завантажити товари</p>
+            )}
+
+            {!isLoading && !isError && filtered.length === 0 && (
+              <div style={{ gridColumn: "1/-1" }}>
+                <EmptyState
+                  title={
+                    effectiveQuery ? "Нічого не знайдено" : "Товарів поки немає"
                   }
-                }}
-              >
-                <div className="product-img">
-                  <img
-                    src={productImage(p.image, 480)}
-                    alt={p.name}
-                    onError={(e) => {
-                      // Якщо Cloudinary не віддає зменшену копію — показуємо оригінал
-                      const original = p.image || cldUrl(STATIC_IMAGES.noImage);
-                      if (e.currentTarget.src !== original)
-                        e.currentTarget.src = original;
-                    }}
-                    loading={index < 4 ? "eager" : "lazy"}
-                    decoding="async"
-                    width={480}
-                    height={480}
-                  />
-                </div>
-                <div className="product-info">
-                  <div>
-                    <b>{p.name}</b>
-                    <div className="product-weight">{p.weight}</div>
-                  </div>
-                  <div className="product-bottom">
-                    <span className="product-price">
-                      {Number(p.price).toFixed(2)} ₴
-                    </span>
-                    <button
-                      className="add-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isAdmin) return;
-                        addItem(
-                          p.name,
-                          p.price,
-                          p.image || cldUrl(STATIC_IMAGES.noImage),
-                          p.description || "",
-                          p.id,
-                        );
-                        toast.success(`${p.name} додано до кошика 🛒`);
-                      }}
-                    >
-                      <span>+</span> Додати
-                    </button>
-                  </div>
-                </div>
+                  subtitle={
+                    effectiveQuery
+                      ? `За запитом «${effectiveQuery}» нічого не знайдено`
+                      : "Поверніться пізніше — скоро буде більше~"
+                  }
+                />
+              </div>
+            )}
 
-                {showOverlay && (
+            {!isLoading &&
+              paginated.map((p, index) => {
+                const isHidden = p.hidden === true;
+                const showOverlay = isAdmin && overlayProductId === p.id;
+
+                return (
                   <div
-                    className="admin-card-overlay"
-                    onClick={(e) => {
-                      if (e.target === e.currentTarget)
-                        setOverlayProductId(null);
+                    className="product-card"
+                    data-id={p.id}
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={p.name}
+                    style={{
+                      position: "relative",
+                      cursor: "pointer",
+                      opacity: isHidden && isAdmin ? 0.55 : 1,
+                    }}
+                    onClick={() => openCard(p)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openCard(p);
+                      }
                     }}
                   >
-                    <button
-                      className="admin-overlay-btn"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOverlayProductId(null);
-                        handleEdit(p.id);
-                      }}
-                    >
-                      <Pencil size={14} /> Змінити
-                    </button>
-                    <button
-                      className="admin-overlay-btn admin-overlay-btn--danger"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOverlayProductId(null);
-                        setDeleteTarget(p);
-                      }}
-                    >
-                      <Trash2 size={14} /> Видалити
-                    </button>
-                    <button
-                      className="admin-overlay-btn"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleMutation.mutate({ id: p.id, hidden: !p.hidden });
-                      }}
-                      disabled={toggleMutation.isPending}
-                    >
-                      {isHidden ? (
-                        <>
-                          <Eye size={14} /> Показати
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff size={14} /> Приховати
-                        </>
-                      )}
-                    </button>
+                    <div className="product-img">
+                      <img
+                        src={productImage(p.image, 480)}
+                        alt={p.name}
+                        onError={(e) => {
+                          // Якщо Cloudinary не віддає зменшену копію — показуємо оригінал
+                          const original =
+                            p.image || cldUrl(STATIC_IMAGES.noImage);
+                          if (e.currentTarget.src !== original)
+                            e.currentTarget.src = original;
+                        }}
+                        loading={index < 4 ? "eager" : "lazy"}
+                        decoding="async"
+                        width={480}
+                        height={480}
+                      />
+                    </div>
+                    <div className="product-info">
+                      <div>
+                        <b>{p.name}</b>
+                        <div className="product-weight">{p.weight}</div>
+                      </div>
+                      <div className="product-bottom">
+                        <span className="product-price">
+                          {Number(p.price).toFixed(2)} ₴
+                        </span>
+                        <button
+                          className="add-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isAdmin) return;
+                            addItem(
+                              p.name,
+                              p.price,
+                              p.image || cldUrl(STATIC_IMAGES.noImage),
+                              p.description || "",
+                              p.id,
+                            );
+                            toast.success(`${p.name} додано до кошика 🛒`);
+                          }}
+                        >
+                          <span>+</span> Додати
+                        </button>
+                      </div>
+                    </div>
+
+                    {showOverlay && (
+                      <div
+                        className="admin-card-overlay"
+                        onClick={(e) => {
+                          if (e.target === e.currentTarget)
+                            setOverlayProductId(null);
+                        }}
+                      >
+                        <button
+                          className="admin-overlay-btn"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOverlayProductId(null);
+                            handleEdit(p.id);
+                          }}
+                        >
+                          <Pencil size={14} /> Змінити
+                        </button>
+                        <button
+                          className="admin-overlay-btn admin-overlay-btn--danger"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOverlayProductId(null);
+                            setDeleteTarget(p);
+                          }}
+                        >
+                          <Trash2 size={14} /> Видалити
+                        </button>
+                        <button
+                          className="admin-overlay-btn"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMutation.mutate({
+                              id: p.id,
+                              hidden: !p.hidden,
+                            });
+                          }}
+                          disabled={toggleMutation.isPending}
+                        >
+                          {isHidden ? (
+                            <>
+                              <Eye size={14} /> Показати
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff size={14} /> Приховати
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-      </section>
+                );
+              })}
+          </section>
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button
-            className="pagination-btn"
-            onClick={() => goToPage(safePage - 1)}
-            disabled={safePage === 1}
-            aria-label="Попередня сторінка"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              className={`pagination-btn${p === safePage ? " active" : ""}`}
-              onClick={() => goToPage(p)}
-              aria-label={`Сторінка ${p}`}
-              aria-current={p === safePage ? "page" : undefined}
-            >
-              {p}
-            </button>
-          ))}
-          <button
-            className="pagination-btn"
-            onClick={() => goToPage(safePage + 1)}
-            disabled={safePage === totalPages}
-            aria-label="Наступна сторінка"
-          >
-            <ChevronRight size={18} />
-          </button>
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="pagination-btn"
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 1}
+                aria-label="Попередня сторінка"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`pagination-btn${p === safePage ? " active" : ""}`}
+                  onClick={() => goToPage(p)}
+                  aria-label={`Сторінка ${p}`}
+                  aria-current={p === safePage ? "page" : undefined}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="pagination-btn"
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage === totalPages}
+                aria-label="Наступна сторінка"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+
+          {hasMore && (
+            <div className="catalog-more">
+              <Link href="/menu" className="catalog-more-btn">
+                Переглянути всі товари
+                <ChevronRight size={18} aria-hidden="true" />
+              </Link>
+            </div>
+          )}
+
+          {!limit && filtered.length > 0 && (
+            <p className="pagination-info">
+              Показано {(safePage - 1) * PAGE_SIZE + 1}–
+              {Math.min(safePage * PAGE_SIZE, filtered.length)} з{" "}
+              {filtered.length} товарів
+            </p>
+          )}
         </div>
-      )}
-
-      {hasMore && (
-        <div className="catalog-more">
-          <Link href="/menu" className="catalog-more-btn">
-            Переглянути всі товари
-            <ChevronRight size={18} aria-hidden="true" />
-          </Link>
-        </div>
-      )}
-
-      {!limit && filtered.length > 0 && (
-        <p className="pagination-info">
-          Показано {(safePage - 1) * PAGE_SIZE + 1}–
-          {Math.min(safePage * PAGE_SIZE, filtered.length)} з {filtered.length}{" "}
-          товарів
-        </p>
-      )}
+      </div>
 
       {!isAdmin && quickViewProduct && (
         <ProductQuickViewModal
