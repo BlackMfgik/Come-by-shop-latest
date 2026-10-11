@@ -19,6 +19,7 @@ import {
   type ProductInput,
 } from "@/lib/api";
 import type { Product } from "@/types";
+import { DEMO_PRODUCTS } from "@/lib/demoProducts";
 import {
   ChevronLeft,
   ChevronRight,
@@ -164,8 +165,21 @@ export default function ProductCatalog({
     isError,
   } = useQuery({
     queryKey: productsKey,
-    queryFn: () => apiGetProducts(undefined, isAdmin ? token : null),
-    initialData: isAdmin ? undefined : initialProducts,
+    queryFn: async () => {
+      if (isAdmin) return apiGetProducts(undefined, token);
+      // ТИМЧАСОВО: демо-каталог, поки бекенд недоступний або база порожня
+      try {
+        const list = await apiGetProducts(undefined, null);
+        return list.length ? list : DEMO_PRODUCTS;
+      } catch {
+        return DEMO_PRODUCTS;
+      }
+    },
+    initialData: isAdmin
+      ? undefined
+      : initialProducts.length
+        ? initialProducts
+        : DEMO_PRODUCTS,
     staleTime: 60_000,
   });
 
