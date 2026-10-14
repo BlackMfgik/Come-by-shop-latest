@@ -1,10 +1,16 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCatalog from "@/components/ProductCatalog";
 import Loading from "./loading";
 import type { Product } from "@/types";
+import { STATIC_IMAGES } from "@/lib/cld";
+
+// Той самий URL, що й у старому дизайні: інші комбінації трансформацій Cloudinary може не віддавати
+const HERO_IMAGE = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "dk9yjgta3"}/image/upload/a_-90,f_webp,q_auto/${STATIC_IMAGES.hero}`;
 
 export const metadata: Metadata = {
   title: "Come by Shop — Замовляй їжу та продукти онлайн",
@@ -46,12 +52,34 @@ export default async function HomePage() {
       <Header />
       <main>
         <section className="hero">
-          <h1>
-            Замовляй їжу та
-            <br />
-            продукти онлайн —<br />
-            оплата на місці чи тут
-          </h1>
+          <div className="hero-copy">
+            <span className="hero-eyebrow">Кухня й крамниця в одному кошику</span>
+            <h1>
+              Замовляй їжу та продукти онлайн — <em>оплата на місці чи тут</em>
+            </h1>
+            <p className="hero-sub">
+              Гарячі страви з меню, продукти з магазину й вигідні комбо. Додай у
+              кошик і оформи замовлення за хвилину.
+            </p>
+            <div className="hero-actions">
+              <Link href="/menu" className="hero-cta hero-cta--primary">
+                Відкрити меню
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <Link href="/shop" className="hero-cta hero-cta--ghost">
+                До магазину
+              </Link>
+            </div>
+          </div>
+          <figure className="hero-photo">
+            <img
+              src={HERO_IMAGE}
+              alt="Свіжі фрукти й овочі"
+              width={1200}
+              height={1200}
+              fetchPriority="high"
+            />
+          </figure>
         </section>
         <Suspense fallback={<Loading />}>
           <ProductCatalog initialProducts={products} limit={8} hideFilter />

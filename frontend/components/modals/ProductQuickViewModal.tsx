@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Maximize2, Minus, Plus } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { cldUrl, STATIC_IMAGES } from "@/lib/cld";
 import { toast } from "sonner";
@@ -50,8 +50,10 @@ interface Props {
 }
 
 export default function ProductQuickViewModal({ product, onClose }: Props) {
-  const { addItem } = useCartStore();
+  const { addItem, updateQty } = useCartStore();
   const [lightbox, setLightbox] = useState(false);
+  const [qty, setQty] = useState(1);
+  const price = Number(product.price);
   const imgSrc = product.image || cldUrl(STATIC_IMAGES.noImage);
 
   function handleAdd() {
@@ -62,7 +64,12 @@ export default function ProductQuickViewModal({ product, onClose }: Props) {
       product.description || "",
       product.id,
     );
-    toast.success(`${product.name} додано до кошика 🛒`);
+    if (qty > 1) updateQty(product.name, qty - 1);
+    toast.success(
+      qty > 1
+        ? `${product.name} × ${qty} додано до кошика 🛒`
+        : `${product.name} додано до кошика 🛒`,
+    );
     onClose();
   }
 
@@ -97,6 +104,9 @@ export default function ProductQuickViewModal({ product, onClose }: Props) {
               </span>
             </div>
             <div className="quick-view-info">
+              {product.category && (
+                <span className="quick-view-category">{product.category}</span>
+              )}
               <h3 id="qv-title" className="quick-view-name">
                 {product.name}
               </h3>
@@ -108,11 +118,37 @@ export default function ProductQuickViewModal({ product, onClose }: Props) {
               )}
               <div className="quick-view-footer">
                 <span className="quick-view-price">
-                  {Number(product.price).toFixed(2)} ₴
+                  {(price * qty).toFixed(2)} ₴
                 </span>
-                <button className="add-btn" onClick={handleAdd}>
-                  <span>+</span> Додати
-                </button>
+                <div className="quick-view-actions">
+                  <div className="quick-view-qty" aria-label="Кількість">
+                    <button
+                      type="button"
+                      className="qty-btn"
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      disabled={qty <= 1}
+                      aria-label="Менше"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="qty-value">{qty}</span>
+                    <button
+                      type="button"
+                      className="qty-btn qty-btn--plus"
+                      onClick={() => setQty((q) => Math.min(99, q + 1))}
+                      aria-label="Більше"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="add-btn quick-view-add"
+                    onClick={handleAdd}
+                  >
+                    <span>+</span> Додати
+                  </button>
+                </div>
               </div>
             </div>
           </div>

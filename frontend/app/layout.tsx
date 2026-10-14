@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Manrope, Unbounded } from "next/font/google";
 import Providers from "@/components/Providers";
 import "./globals.css";
 
@@ -35,6 +36,18 @@ export const metadata: Metadata = {
   },
 };
 
+// Обидва шрифти мають повну кирилицю (ї, є, ґ); роздаються з нашого домену
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  variable: "--font-unbounded",
+  display: "swap",
+});
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0c0c0c" },
@@ -51,15 +64,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html
+      lang="uk"
+      data-scroll-behavior="smooth"
+      className={`${unbounded.variable} ${manrope.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link
           rel="icon"
@@ -68,6 +80,25 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
+        {/* Фільтри перефарбовують зелений растровий логотип у --accent кожної теми */}
+        <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+          <filter id="logo-tint-dark" colorInterpolationFilters="sRGB">
+            <feColorMatrix type="saturate" values="0" />
+            <feComponentTransfer>
+              <feFuncR type="table" tableValues="0 0.115 0.231 0.346 0.461 0.576 0.718 0.859 1" />
+              <feFuncG type="table" tableValues="0 0.162 0.325 0.487 0.649 0.812 0.875 0.937 1" />
+              <feFuncB type="table" tableValues="0 0.084 0.168 0.252 0.336 0.42 0.613 0.807 1" />
+            </feComponentTransfer>
+          </filter>
+          <filter id="logo-tint-light" colorInterpolationFilters="sRGB">
+            <feColorMatrix type="saturate" values="0" />
+            <feComponentTransfer>
+              <feFuncR type="table" tableValues="0 0.048 0.096 0.144 0.191 0.239 0.493 0.746 1" />
+              <feFuncG type="table" tableValues="0 0.096 0.191 0.287 0.383 0.478 0.652 0.826 1" />
+              <feFuncB type="table" tableValues="0 0.03 0.06 0.089 0.119 0.149 0.433 0.716 1" />
+            </feComponentTransfer>
+          </filter>
+        </svg>
         <Providers>{children}</Providers>
         {/* WayForPay widget script — lazyOnload щоб не блокувати рендер */}
         <Script

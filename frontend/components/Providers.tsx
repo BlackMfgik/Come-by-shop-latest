@@ -32,7 +32,7 @@ export default function Providers({ children }: { children: ReactNode }) {
           closeButton
           toastOptions={{
             style: {
-              fontFamily: "var(--font-dm-sans, inherit)",
+              fontFamily: "var(--font-body)",
               borderRadius: "12px",
             },
             duration: 3800,
