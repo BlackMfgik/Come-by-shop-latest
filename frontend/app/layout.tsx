@@ -27,8 +27,9 @@ export const metadata: Metadata = {
     description: "Замовляй їжу та продукти онлайн — оплата на місці чи тут",
     images: [
       {
-        // Скріншот головної сторінки (frontend/public/og-image.png)
-        url: "/og-image.png",
+        // Скріншот головної сторінки (frontend/public/og-image.png).
+        // Абсолютний URL: metadataBase веде на come-by-shop.com, який поки не резолвиться
+        url: "https://come-by-shope-latest.vercel.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "Come by Shop — інтернет-магазин їжі та напоїв",
