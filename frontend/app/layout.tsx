@@ -27,7 +27,8 @@ export const metadata: Metadata = {
     description: "Замовляй їжу та продукти онлайн — оплата на місці чи тут",
     images: [
       {
-        url: `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_webp,q_auto/dhaneshdamodaran-fruits-7357732_1920_ozytfx`,
+        // Скріншот головної сторінки (frontend/public/og-image.png)
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Come by Shop — інтернет-магазин їжі та напоїв",
